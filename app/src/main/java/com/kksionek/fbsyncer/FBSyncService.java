@@ -67,9 +67,9 @@ public class FBSyncService extends Service {
     private final List<Friend> mFbList = new ArrayList<>();
     private final AtomicBoolean mContactsLoaded = new AtomicBoolean(false);
     private final AtomicBoolean mFbLoaded = new AtomicBoolean(false);
-    private List<Friend> mNotSyncedContacts;
-    private List<Friend> mNotSyncedFriends;
-    private ExecutorService mThreadPool = null;
+    private final List<Friend> mNotSyncedContacts = new ArrayList<>();
+    private final List<Friend> mNotSyncedFriends = new ArrayList<>();
+    private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
 
     public FBSyncService() {
     }
@@ -102,12 +102,28 @@ public class FBSyncService extends Service {
         mSyncListener = listener;
     }
 
-    public List<Friend> getNotSyncedContacts() {
-        return mNotSyncedContacts;
+    public List<Friend> getNotSyncedContacts(int offset, int limit) {
+        if (offset > mNotSyncedContacts.size())
+            return null;
+
+        List<Friend> smallList = new ArrayList<>();
+        synchronized (mNotSyncedContacts) {
+            for (int i = offset; i < offset + limit && i < mNotSyncedContacts.size(); ++i)
+                smallList.add(mNotSyncedContacts.get(i));
+        }
+        return smallList;
     }
 
-    public List<Friend> getNotSyncedFriends() {
-        return mNotSyncedFriends;
+    public List<Friend> getNotSyncedFriends(int offset, int limit) {
+        if (offset > mNotSyncedFriends.size())
+            return null;
+
+        List<Friend> smallList = new ArrayList<>();
+        synchronized (mNotSyncedFriends) {
+            for (int i = offset; i < offset + limit && i < mNotSyncedFriends.size(); ++i)
+                smallList.add(mNotSyncedFriends.get(i));
+        }
+        return smallList;
     }
 
     private void getContacts() {
@@ -145,22 +161,52 @@ public class FBSyncService extends Service {
             }
 
             @Override
+            protected Void doInBackground(Void... voids) {
+                getContacts();
+                getFbContacts();
+
+                synchronized (mNotSyncedContacts) {
+                    synchronized (mNotSyncedFriends) {
+                        mNotSyncedContacts.clear();
+                        mNotSyncedFriends.clear();
+                        performSync(mNotSyncedContacts, mNotSyncedFriends);
+                    }
+                }
+
+                Log.d(TAG, "doInBackground: DONE");
+                return null;
+            }
+
+            @Override
             protected void onPostExecute(Void aVoid) {
                 super.onPostExecute(aVoid);
                 if (mSyncListener != null)
                     mSyncListener.onSyncEnded();
             }
+        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    public void syncSingle(final String contactId, final String photo) {
+        new AsyncTask<Void, Void, Void>() {
+
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+                if (mSyncListener != null)
+                    mSyncListener.onSyncStarted();
+            }
 
             @Override
             protected Void doInBackground(Void... voids) {
-                getContacts();
-                getFbContacts();
-
-                mNotSyncedContacts = new ArrayList<>();
-                mNotSyncedFriends = new ArrayList<>();
-                performSync(mNotSyncedContacts, mNotSyncedFriends);
-                Log.d(TAG, "doInBackground: DONE");
+                setContactPhoto(contactId, photo);
                 return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+                if (mSyncListener != null)
+                    mSyncListener.onSyncEnded();
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
@@ -201,7 +247,6 @@ public class FBSyncService extends Service {
         for (Friend friend : mContactList)
             notSyncedContacts.add(friend);
 
-        mThreadPool = Executors.newFixedThreadPool(2);
         List<Callable<Void>> callables = new ArrayList<>();
 
         for (final Friend friend : mFbList) {
@@ -211,7 +256,7 @@ public class FBSyncService extends Service {
                 callables.add(new Callable<Void>() {
                     @Override
                     public Void call() throws Exception {
-                        setContactPhoto(contact, friend.getPhoto());
+                        setContactPhoto(contact.getId(), friend.getPhoto());
                         return null;
                     }
                 });
@@ -224,11 +269,9 @@ public class FBSyncService extends Service {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        mThreadPool.shutdownNow();
-        mThreadPool = null;
     }
 
-    private void setContactPhoto(@NonNull final Friend friend, @NonNull final String photo) {
+    private void setContactPhoto(@NonNull final String friendId, @NonNull final String photo) {
         Bitmap bitmap = getBitmapFromURL(photo);
         if (bitmap == null)
             return;
@@ -238,13 +281,15 @@ public class FBSyncService extends Service {
         byte[] photoData = streamy.toByteArray();
         ContentValues values = new ContentValues();
 
-        values.put(ContactsContract.Data.RAW_CONTACT_ID, friend.getId());
+        values.put(ContactsContract.Data.RAW_CONTACT_ID, friendId);
         values.put(ContactsContract.Data.IS_SUPER_PRIMARY, 1);
         values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoData);
         values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
 
+        Log.d(TAG, "setContactPhoto: id = " + friendId);
+
         int photoRow = -1;
-        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + friend.getId() + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
+        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + friendId + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
         Cursor cursor = getContentResolver().query(ContactsContract.Data.CONTENT_URI, new String[]{ContactsContract.Contacts.Data._ID}, where, null, null);
         if (cursor.moveToFirst())
             photoRow = cursor.getInt(0);
@@ -326,6 +371,12 @@ public class FBSyncService extends Service {
     public boolean onUnbind(Intent intent) {
         mSyncListener = null;
         return super.onUnbind(intent);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mThreadPool.shutdownNow();
     }
 
     public class MyLocalBinder extends Binder {
