@@ -37,6 +37,7 @@ import com.facebook.FacebookSdk;
 import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
+import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +58,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
     private ListView mListView;
     private CallbackManager mCallbackManager;
     private Friend mClickedFriend = null;
-    private final ImageCache mImageCache = new ImageCache();
 
     private FBSyncService mService;
 
@@ -261,7 +261,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             ImageView imageView;
             TextView textView;
             int position;
-            AtomicBoolean mLoading = new AtomicBoolean(false);
         }
 
         public MyAdapter(Context context, List<Friend> objects) {
@@ -284,50 +283,9 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             holder.position = position;
             Friend friend = getItem(position);
             holder.textView.setText(friend.getName());
-            Drawable drawable = mImageCache.takeDrawable(friend.getName());
-            if (drawable != null)
-                holder.imageView.setImageDrawable(drawable);
-            else if (holder.mLoading.compareAndSet(false, true)) {
-                ThumbnailLoader loader = new ThumbnailLoader(holder, position, friend);
-                loader.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-            }
+            Picasso.with(getContext()).load(friend.getPhoto()).into(holder.imageView);
 
             return convertView;
-        }
-
-        private class ThumbnailLoader extends AsyncTask<Void, Void, Drawable> {
-
-            private final ViewHolder mViewHolder;
-            private final int mPosition;
-            private final Friend mFriend;
-
-            public ThumbnailLoader(ViewHolder viewHolder, int position, Friend friend) {
-                mViewHolder = viewHolder;
-                mPosition = position;
-                mFriend = friend;
-            }
-
-            @Override
-            protected Drawable doInBackground(Void... params) {
-                try {
-                    InputStream is = (InputStream) new URL(mFriend.getPhoto()).getContent();
-                    Drawable d = Drawable.createFromStream(is, null);
-                    is.close();
-                    return d;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Drawable drawable) {
-                super.onPostExecute(drawable);
-                mImageCache.addToMap(mFriend.getName(), drawable);
-                if (mPosition == mViewHolder.position)
-                    mViewHolder.imageView.setImageDrawable(drawable);
-                mViewHolder.mLoading.set(false);
-            }
         }
     }
 }
