@@ -46,6 +46,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.realm.Realm;
+import io.realm.RealmResults;
+
 public class FBSyncService extends Service {
 
     private static final String TAG = "FBSyncService";
@@ -63,23 +66,17 @@ public class FBSyncService extends Service {
 
     private AccessToken mAccessToken = null;
     private CallbackManager mCallbackManager;
-    private final List<Friend> mContactList = new ArrayList<>();
-    private final List<Friend> mFbList = new ArrayList<>();
     private final AtomicBoolean mContactsLoaded = new AtomicBoolean(false);
     private final AtomicBoolean mFbLoaded = new AtomicBoolean(false);
-    private final List<Friend> mNotSyncedContacts = new ArrayList<>();
-    private final List<Friend> mNotSyncedFriends = new ArrayList<>();
     private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
-
-    public FBSyncService() {
-    }
+    private Realm mRealm;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        FacebookSdk.sdkInitialize(getApplicationContext());
         AppEventsLogger.activateApp(getApplication());
         mCallbackManager = CallbackManager.Factory.create();
+        mRealm = Realm.getDefaultInstance();
 
         LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
             @Override
@@ -102,47 +99,27 @@ public class FBSyncService extends Service {
         mSyncListener = listener;
     }
 
-    public List<Friend> getNotSyncedContacts(int offset, int limit) {
-        if (offset > mNotSyncedContacts.size())
-            return null;
-
-        List<Friend> smallList = new ArrayList<>();
-        synchronized (mNotSyncedContacts) {
-            for (int i = offset; i < offset + limit && i < mNotSyncedContacts.size(); ++i)
-                smallList.add(mNotSyncedContacts.get(i));
-        }
-        return smallList;
-    }
-
-    public List<Friend> getNotSyncedFriends(int offset, int limit) {
-        if (offset > mNotSyncedFriends.size())
-            return null;
-
-        List<Friend> smallList = new ArrayList<>();
-        synchronized (mNotSyncedFriends) {
-            for (int i = offset; i < offset + limit && i < mNotSyncedFriends.size(); ++i)
-                smallList.add(mNotSyncedFriends.get(i));
-        }
-        return smallList;
-    }
-
     private void getContacts() {
         mContactsLoaded.set(false);
-        mContactList.clear();
+        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+                .equalTo("mFacebook", false).findAll();
+        contacts.deleteAllFromRealm();
         Cursor cursor = getContentResolver().query(ContactsContract.RawContacts.CONTENT_URI, PROJECTION, null, null, null);
         String contactId;
         String displayName;
         while (cursor.moveToNext()) {
             contactId = cursor.getString(CONTACT_ID_INDEX);
             displayName = cursor.getString(DISPLAY_NAME_PRIMARY_INDEX);
-            mContactList.add(new Friend(contactId, displayName));
+            mRealm.copyToRealm(new Friend(contactId, displayName));
         }
         mContactsLoaded.set(true);
     }
 
     private void getFbContacts() {
         mFbLoaded.set(false);
-        mFbList.clear();
+        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+                .equalTo("mFacebook", true).findAll();
+        contacts.deleteAllFromRealm();
         mAccessToken = AccessToken.getCurrentAccessToken();
         if (mAccessToken == null)
             return;
@@ -165,13 +142,7 @@ public class FBSyncService extends Service {
                 getContacts();
                 getFbContacts();
 
-                synchronized (mNotSyncedContacts) {
-                    synchronized (mNotSyncedFriends) {
-                        mNotSyncedContacts.clear();
-                        mNotSyncedFriends.clear();
-                        performSync(mNotSyncedContacts, mNotSyncedFriends);
-                    }
-                }
+                performSync();
 
                 Log.d(TAG, "doInBackground: DONE");
                 return null;
@@ -223,7 +194,7 @@ public class FBSyncService extends Service {
                         JSONArray friendArray = response.getJSONObject().getJSONArray("data");
                         for (int i = 0; i < friendArray.length(); ++i) {
 //                            Log.d(TAG, "onCompleted: FRIEND = " + friendArray.get(i).toString());
-                            mFbList.add(new Friend(friendArray.getJSONObject(i)));
+                            mRealm.copyToRealm(new Friend(friendArray.getJSONObject(i)));
                         }
                         if (!response.getJSONObject().isNull("paging")) {
                             String token = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
@@ -243,27 +214,34 @@ public class FBSyncService extends Service {
         req.executeAndWait();
     }
 
-    private void performSync(List<Friend> notSyncedContacts, List<Friend> notSyncedFriends) {
-        for (Friend friend : mContactList)
-            notSyncedContacts.add(friend);
-
+    private void performSync() {
         List<Callable<Void>> callables = new ArrayList<>();
+        RealmResults<Friend> all = mRealm.where(Friend.class).findAll();
+        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+                .equalTo("mFacebook", false).findAll();
+        RealmResults<Friend> friends = mRealm.where(Friend.class)
+                .equalTo("mFacebook", true).findAll();
 
-        for (final Friend friend : mFbList) {
+        mRealm.beginTransaction();
+
+        for (Friend friend : all)
+            friend.setSynced(false);
+
+        for (final Friend friend : friends) {
             int idx;
-            if ((idx = mContactList.indexOf(friend)) != -1) {
-                final Friend contact = mContactList.get(idx);
-                callables.add(new Callable<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        setContactPhoto(contact.getId(), friend.getPhoto());
+            if ((idx = contacts.indexOf(friend)) != -1) {
+                final Friend contact = contacts.get(idx);
+                callables.add(() -> {
+                    setContactPhoto(contact.getId(), friend.getPhoto());
                         return null;
                     }
-                });
-                notSyncedContacts.remove(contact);
+                );
+                contact.setSynced(true);
             } else
-                notSyncedFriends.add(friend);
+                friend.setSynced(false);
         }
+        mRealm.commitTransaction();
+
         try {
             mThreadPool.invokeAll(callables);
         } catch (InterruptedException e) {
@@ -376,6 +354,7 @@ public class FBSyncService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mRealm.close();
         mThreadPool.shutdownNow();
     }
 

@@ -48,6 +48,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import io.realm.OrderedRealmCollection;
+import io.realm.Realm;
+import io.realm.RealmBaseAdapter;
+import io.realm.RealmResults;
+import io.realm.Sort;
+
 public class MainActivity extends AppCompatActivity implements ISyncListener {
 
     private static final int REQUEST_PERMISSIONS_CONTACTS = 4444;
@@ -85,8 +91,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         mQuestionBtn = (Button) findViewById(R.id.questionButton);
         mListView = (ListView) findViewById(R.id.listView);
 
-        FacebookSdk.sdkInitialize(getApplicationContext());
-        AppEventsLogger.activateApp(getApplication());
         mCallbackManager = CallbackManager.Factory.create();
 
         LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
@@ -224,24 +228,14 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         mQuestionBtn.setOnClickListener(null);
         mListView.setVisibility(View.VISIBLE);
 
-        List<Friend> friends = new ArrayList<>();
-        List<Friend> notSyncedContacts;
-        int offset = 0;
-        int limit = 50;
-        do {
-            if (mService != null) {
-                notSyncedContacts = mService.getNotSyncedFriends(offset, limit);
-                if (notSyncedContacts.size() == limit)
-                    offset += limit;
-                else
-                    offset = -1;
-                friends.addAll(notSyncedContacts);
-            }
-        } while (offset != -1);
+        Realm realm = Realm.getDefaultInstance();
 
-        Collections.sort(friends);
+        RealmResults<Friend> notSyncedContacts = realm.where(Friend.class)
+                .equalTo("mSynced", false)
+                .equalTo("mFacebook", false)
+                .findAllSorted("mName", Sort.ASCENDING);
 
-        mAdapter = new MyAdapter(this, friends);
+        mAdapter = new MyAdapter(this, notSyncedContacts);
         mListView.setAdapter(mAdapter);
         mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -255,7 +249,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         });
     }
 
-    private class MyAdapter extends ArrayAdapter<Friend> {
+    private class MyAdapter extends RealmBaseAdapter<Friend> {
 
         class ViewHolder {
             ImageView imageView;
@@ -263,15 +257,15 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             int position;
         }
 
-        public MyAdapter(Context context, List<Friend> objects) {
-            super(context, R.layout.row_friends, objects);
+        public MyAdapter(Context context, OrderedRealmCollection<Friend> objects) {
+            super(context, objects);
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             ViewHolder holder;
             if (convertView == null) {
-                convertView = LayoutInflater.from(getContext()).inflate(R.layout.row_friends, parent, false);
+                convertView = LayoutInflater.from(getBaseContext()).inflate(R.layout.row_friends, parent, false);
                 holder = new ViewHolder();
                 holder.imageView = (ImageView) convertView.findViewById(R.id.thumbnail);
                 holder.textView = (TextView) convertView.findViewById(R.id.text);
@@ -283,7 +277,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             holder.position = position;
             Friend friend = getItem(position);
             holder.textView.setText(friend.getName());
-            Picasso.with(getContext()).load(friend.getPhoto()).into(holder.imageView);
+            Picasso.with(getBaseContext()).load(friend.getPhoto()).into(holder.imageView);
 
             return convertView;
         }

@@ -1,29 +1,39 @@
 package com.kksionek.fbsyncer;
 
-import android.util.Log;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Friend implements Comparable<Friend> {
+import io.realm.RealmObject;
+import io.realm.annotations.PrimaryKey;
+
+public class Friend extends RealmObject implements Comparable<Friend> {
+    @PrimaryKey
     private String mId;
     private String mName;
     private String mPhoto;
+    private boolean mFacebook;
 
+    private Friend mRelated;
+    private boolean mSynced;
 
     public Friend(String id, String name) {
-        mId = id;
-        mName = name;
-        mPhoto = null;
+        this(id, name, null);
     }
 
-    public Friend(String id, String name, String photo) {
+    public Friend(@NonNull String id, @NonNull String name, @Nullable String photo) {
         mId = id;
         mName = name;
         mPhoto = photo;
+        mFacebook = false;
+        mRelated = null;
     }
 
     public Friend(JSONObject jsonObject) {
+        mFacebook = true;
+        mRelated = null;
         try {
             mId = jsonObject.getString("id");
             mName = jsonObject.getString("name");
@@ -59,4 +69,21 @@ public class Friend implements Comparable<Friend> {
     public String getId() {
         return mId;
     }
+
+    public void setSynced(boolean synced) {
+        mSynced = synced;
+    }
+//
+//    public boolean isFacebook() {
+//        return mFacebook;
+//    }
+//
+//    @Nullable
+//    public Friend getRelated() {
+//        return mRelated;
+//    }
+//
+//    public void setRelated(@Nullable Friend related) {
+//        mRelated = related;
+//    }
 }

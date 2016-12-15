@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'realm-android'
 
 android {
     compileSdkVersion 24
@@ -33,4 +34,5 @@ dependencies {
     compile 'com.android.support:design:24.+'
     compile 'com.facebook.android:facebook-android-sdk:4.+'
     compile 'com.squareup.picasso:picasso:2.5.2'
+    compile 'io.realm:android-adapters:1.4.0'
 }
