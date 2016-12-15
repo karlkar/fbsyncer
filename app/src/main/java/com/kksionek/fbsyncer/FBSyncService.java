@@ -1,11 +1,13 @@
 package com.kksionek.fbsyncer;
 
 import android.app.Service;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
@@ -19,7 +21,6 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
-import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
@@ -69,14 +70,12 @@ public class FBSyncService extends Service {
     private final AtomicBoolean mContactsLoaded = new AtomicBoolean(false);
     private final AtomicBoolean mFbLoaded = new AtomicBoolean(false);
     private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
-    private Realm mRealm;
 
     @Override
     public void onCreate() {
         super.onCreate();
         AppEventsLogger.activateApp(getApplication());
         mCallbackManager = CallbackManager.Factory.create();
-        mRealm = Realm.getDefaultInstance();
 
         LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
             @Override
@@ -101,26 +100,62 @@ public class FBSyncService extends Service {
 
     private void getContacts() {
         mContactsLoaded.set(false);
-        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Friend> contacts = realm.where(Friend.class)
                 .equalTo("mFacebook", false).findAll();
-        contacts.deleteAllFromRealm();
         Cursor cursor = getContentResolver().query(ContactsContract.RawContacts.CONTENT_URI, PROJECTION, null, null, null);
-        String contactId;
+        String rawContactId;
         String displayName;
+        String thumbnailPath;
+
+        realm.beginTransaction();
+        contacts.deleteAllFromRealm();
         while (cursor.moveToNext()) {
-            contactId = cursor.getString(CONTACT_ID_INDEX);
+            rawContactId = cursor.getString(CONTACT_ID_INDEX);
             displayName = cursor.getString(DISPLAY_NAME_PRIMARY_INDEX);
-            mRealm.copyToRealm(new Friend(contactId, displayName));
+            thumbnailPath = getThumbnailOf(rawContactId);
+            realm.copyToRealm(new Friend(rawContactId, displayName, thumbnailPath));
         }
+        realm.commitTransaction();
+        realm.close();
         mContactsLoaded.set(true);
+    }
+
+    private String getThumbnailOf(String rawContactId) {
+        String contactId;
+        Cursor cur = getContentResolver()
+                .query(ContactsContract.Data.CONTENT_URI,
+                        new String[] {ContactsContract.Data.CONTACT_ID},
+                        ContactsContract.Data.RAW_CONTACT_ID
+                                + "="
+                                + rawContactId
+                                + " AND "
+                                + ContactsContract.Data.MIMETYPE
+                                + "='"
+                                + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
+                                + "'", null, null);
+        if (cur != null && cur.moveToFirst()) {
+            contactId = cur.getString(0);
+            cur.close();
+            return Uri.withAppendedPath(
+                    ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI,
+                            Long.parseLong(contactId)),
+                    ContactsContract.Contacts.Photo.CONTENT_DIRECTORY)
+                    .toString();
+        } else
+            return null;
     }
 
     private void getFbContacts() {
         mFbLoaded.set(false);
-        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Friend> contacts = realm.where(Friend.class)
                 .equalTo("mFacebook", true).findAll();
+        realm.beginTransaction();
         contacts.deleteAllFromRealm();
+        realm.commitTransaction();
         mAccessToken = AccessToken.getCurrentAccessToken();
+        realm.close();
         if (mAccessToken == null)
             return;
         requestFriends(null);
@@ -192,10 +227,14 @@ public class FBSyncService extends Service {
                 else {
                     try {
                         JSONArray friendArray = response.getJSONObject().getJSONArray("data");
+                        Realm realm = Realm.getDefaultInstance();
+                        realm.beginTransaction();
                         for (int i = 0; i < friendArray.length(); ++i) {
 //                            Log.d(TAG, "onCompleted: FRIEND = " + friendArray.get(i).toString());
-                            mRealm.copyToRealm(new Friend(friendArray.getJSONObject(i)));
+                            realm.copyToRealm(new Friend(friendArray.getJSONObject(i)));
                         }
+                        realm.commitTransaction();
+                        realm.close();
                         if (!response.getJSONObject().isNull("paging")) {
                             String token = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
                             requestFriends(token);
@@ -216,13 +255,14 @@ public class FBSyncService extends Service {
 
     private void performSync() {
         List<Callable<Void>> callables = new ArrayList<>();
-        RealmResults<Friend> all = mRealm.where(Friend.class).findAll();
-        RealmResults<Friend> contacts = mRealm.where(Friend.class)
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Friend> all = realm.where(Friend.class).findAll();
+        RealmResults<Friend> contacts = realm.where(Friend.class)
                 .equalTo("mFacebook", false).findAll();
-        RealmResults<Friend> friends = mRealm.where(Friend.class)
+        RealmResults<Friend> friends = realm.where(Friend.class)
                 .equalTo("mFacebook", true).findAll();
 
-        mRealm.beginTransaction();
+        realm.beginTransaction();
 
         for (Friend friend : all)
             friend.setSynced(false);
@@ -240,7 +280,8 @@ public class FBSyncService extends Service {
             } else
                 friend.setSynced(false);
         }
-        mRealm.commitTransaction();
+        realm.commitTransaction();
+        realm.close();
 
         try {
             mThreadPool.invokeAll(callables);
@@ -354,7 +395,6 @@ public class FBSyncService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mRealm.close();
         mThreadPool.shutdownNow();
     }
 

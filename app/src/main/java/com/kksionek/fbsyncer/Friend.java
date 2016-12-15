@@ -19,6 +19,15 @@ public class Friend extends RealmObject implements Comparable<Friend> {
     private Friend mRelated;
     private boolean mSynced;
 
+    public Friend() {
+        mId = null;
+        mName = null;
+        mPhoto = null;
+        mFacebook = false;
+        mRelated = null;
+        mSynced = false;
+    }
+
     public Friend(String id, String name) {
         this(id, name, null);
     }
@@ -29,11 +38,13 @@ public class Friend extends RealmObject implements Comparable<Friend> {
         mPhoto = photo;
         mFacebook = false;
         mRelated = null;
+        mSynced = false;
     }
 
     public Friend(JSONObject jsonObject) {
         mFacebook = true;
         mRelated = null;
+        mSynced = false;
         try {
             mId = jsonObject.getString("id");
             mName = jsonObject.getString("name");

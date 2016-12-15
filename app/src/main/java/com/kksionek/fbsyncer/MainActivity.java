@@ -277,7 +277,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             holder.position = position;
             Friend friend = getItem(position);
             holder.textView.setText(friend.getName());
-            Picasso.with(getBaseContext()).load(friend.getPhoto()).into(holder.imageView);
+            Picasso.with(getBaseContext()).load(friend.getPhoto()).placeholder(R.drawable.contact).into(holder.imageView);
 
             return convertView;
         }
