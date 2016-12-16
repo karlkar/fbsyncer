@@ -102,20 +102,35 @@ public class FBSyncService extends Service {
         mContactsLoaded.set(false);
         Realm realm = Realm.getDefaultInstance();
         RealmResults<Friend> contacts = realm.where(Friend.class)
-                .equalTo("mFacebook", false).findAll();
+                .equalTo("mFacebook", false)
+                .findAll();
         Cursor cursor = getContentResolver().query(ContactsContract.RawContacts.CONTENT_URI, PROJECTION, null, null, null);
         String rawContactId;
         String displayName;
         String thumbnailPath;
 
         realm.beginTransaction();
-        contacts.deleteAllFromRealm();
+        for (Friend contact : contacts)
+            contact.setOld(true);
         while (cursor.moveToNext()) {
             rawContactId = cursor.getString(CONTACT_ID_INDEX);
             displayName = cursor.getString(DISPLAY_NAME_PRIMARY_INDEX);
             thumbnailPath = getThumbnailOf(rawContactId);
-            realm.copyToRealm(new Friend(rawContactId, displayName, thumbnailPath));
+            Friend newContact = new Friend(rawContactId, displayName, thumbnailPath);
+            RealmResults<Friend> preUpdateContact = realm.where(Friend.class)
+                    .equalTo("mId", rawContactId)
+                    .findAll();
+            if (preUpdateContact.size() > 0) {
+                if (preUpdateContact.first().getRelated() != null)
+                    newContact.setRelated(preUpdateContact.first().getRelated());
+            }
+            realm.insertOrUpdate(newContact);
         }
+        RealmResults<Friend> oldContacts = contacts.where()
+                .equalTo("mOld", true)
+                .findAll();
+        Log.d(TAG, "getContacts: " + oldContacts.size() + " contacts were deleted from phone.");
+        oldContacts.deleteAllFromRealm();
         realm.commitTransaction();
         realm.close();
         mContactsLoaded.set(true);
@@ -149,16 +164,25 @@ public class FBSyncService extends Service {
     private void getFbContacts() {
         mFbLoaded.set(false);
         Realm realm = Realm.getDefaultInstance();
-        RealmResults<Friend> contacts = realm.where(Friend.class)
-                .equalTo("mFacebook", true).findAll();
+        RealmResults<Friend> friends = realm.where(Friend.class)
+                .equalTo("mFacebook", true)
+                .findAll();
         realm.beginTransaction();
-        contacts.deleteAllFromRealm();
+        for (Friend friend : friends)
+            friend.setOld(true);
         realm.commitTransaction();
         mAccessToken = AccessToken.getCurrentAccessToken();
-        realm.close();
         if (mAccessToken == null)
             return;
         requestFriends(null);
+        RealmResults<Friend> oldFriends = friends.where()
+                .equalTo("mOld", true)
+                .findAll();
+        Log.d(TAG, "getFbContacts: " + oldFriends.size() + " friends were deleted from Facebook");
+        realm.beginTransaction();
+        oldFriends.deleteAllFromRealm();
+        realm.commitTransaction();
+        realm.close();
         mFbLoaded.set(true);
     }
 
@@ -231,7 +255,7 @@ public class FBSyncService extends Service {
                         realm.beginTransaction();
                         for (int i = 0; i < friendArray.length(); ++i) {
 //                            Log.d(TAG, "onCompleted: FRIEND = " + friendArray.get(i).toString());
-                            realm.copyToRealm(new Friend(friendArray.getJSONObject(i)));
+                            realm.insertOrUpdate(new Friend(friendArray.getJSONObject(i)));
                         }
                         realm.commitTransaction();
                         realm.close();
@@ -267,18 +291,25 @@ public class FBSyncService extends Service {
         for (Friend friend : all)
             friend.setSynced(false);
 
-        for (final Friend friend : friends) {
+        for (final Friend contact : contacts) {
             int idx;
-            if ((idx = contacts.indexOf(friend)) != -1) {
-                final Friend contact = contacts.get(idx);
+            if ((idx = friends.indexOf(contact)) != -1) {
+                final Friend friend = friends.get(idx);
                 callables.add(() -> {
                     setContactPhoto(contact.getId(), friend.getPhoto());
-                        return null;
-                    }
-                );
+                    return null;
+                });
+                contact.setSynced(true);
+                contact.setRelated(friend);
+            } else if (contact.getRelated() != null) {
+                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using previous settings");
+                callables.add(() -> {
+                    setContactPhoto(contact.getId(), contact.getRelated().getPhoto());
+                    return null;
+                });
                 contact.setSynced(true);
             } else
-                friend.setSynced(false);
+                contact.setSynced(false);
         }
         realm.commitTransaction();
         realm.close();

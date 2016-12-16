@@ -18,6 +18,7 @@ public class Friend extends RealmObject implements Comparable<Friend> {
 
     private Friend mRelated;
     private boolean mSynced;
+    private boolean mOld;
 
     public Friend() {
         mId = null;
@@ -26,6 +27,7 @@ public class Friend extends RealmObject implements Comparable<Friend> {
         mFacebook = false;
         mRelated = null;
         mSynced = false;
+        mOld = false;
     }
 
     public Friend(String id, String name) {
@@ -39,12 +41,14 @@ public class Friend extends RealmObject implements Comparable<Friend> {
         mFacebook = false;
         mRelated = null;
         mSynced = false;
+        mOld = false;
     }
 
     public Friend(JSONObject jsonObject) {
         mFacebook = true;
         mRelated = null;
         mSynced = false;
+        mOld = false;
         try {
             mId = jsonObject.getString("id");
             mName = jsonObject.getString("name");
@@ -84,17 +88,17 @@ public class Friend extends RealmObject implements Comparable<Friend> {
     public void setSynced(boolean synced) {
         mSynced = synced;
     }
-//
-//    public boolean isFacebook() {
-//        return mFacebook;
-//    }
-//
-//    @Nullable
-//    public Friend getRelated() {
-//        return mRelated;
-//    }
-//
-//    public void setRelated(@Nullable Friend related) {
-//        mRelated = related;
-//    }
+
+    public void setOld(boolean old) {
+        mOld = old;
+    }
+
+    public void setRelated(@Nullable Friend related) {
+        mRelated = related;
+    }
+
+    @Nullable
+    public Friend getRelated() {
+        return mRelated;
+    }
 }
