@@ -2,13 +2,10 @@ package com.kksionek.fbsyncer;
 
 import android.Manifest;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.drawable.Drawable;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.IBinder;
 import android.provider.ContactsContract;
@@ -17,15 +14,12 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,26 +27,16 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
-import com.facebook.FacebookSdk;
-import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
-import com.squareup.picasso.Picasso;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import io.realm.OrderedRealmCollection;
 import io.realm.Realm;
-import io.realm.RealmBaseAdapter;
 import io.realm.RealmResults;
 import io.realm.Sort;
+
+import static android.support.v7.widget.DividerItemDecoration.VERTICAL;
 
 public class MainActivity extends AppCompatActivity implements ISyncListener {
 
@@ -61,9 +45,12 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
     private static final String TAG = "MainActivity";
     private TextView mTextView;
     private Button mQuestionBtn;
-    private ListView mListView;
+    private RecyclerView mRecyclerView;
     private CallbackManager mCallbackManager;
     private Friend mClickedFriend = null;
+
+    private ContactsAdapter mContactsAdapter;
+    private Realm mRealm;
 
     private FBSyncService mService;
 
@@ -80,7 +67,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             mService = null;
         }
     };
-    private MyAdapter mAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
 
         mTextView = (TextView) findViewById(R.id.questionTextView);
         mQuestionBtn = (Button) findViewById(R.id.questionButton);
-        mListView = (ListView) findViewById(R.id.listView);
+        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
 
         mCallbackManager = CallbackManager.Factory.create();
 
@@ -121,6 +107,8 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             else
                 showSyncScreen();
         }
+
+        mRealm = Realm.getDefaultInstance();
     }
 
     @Override
@@ -139,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             unbindService(mConnection);
             mService = null;
         }
+        mRealm.close();
     }
 
     private void showPermissionRequestScreen() {
@@ -150,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS}, REQUEST_PERMISSIONS_CONTACTS);
             }
         });
-        mListView.setVisibility(View.GONE);
+        mRecyclerView.setVisibility(View.GONE);
     }
 
     private void showFbLoginScreen() {
@@ -162,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                 LoginManager.getInstance().logInWithReadPermissions(MainActivity.this, Arrays.asList("user_friends"));
             }
         });
-        mListView.setVisibility(View.GONE);
+        mRecyclerView.setVisibility(View.GONE);
     }
 
     private void showSyncScreen() {
@@ -175,7 +164,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                     mService.startSync();
             }
         });
-        mListView.setVisibility(View.GONE);
+        mRecyclerView.setVisibility(View.GONE);
     }
 
     @Override
@@ -226,60 +215,24 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         mTextView.setText("Not all contacts were synced. Here's the list of those");
         mQuestionBtn.setVisibility(View.GONE);
         mQuestionBtn.setOnClickListener(null);
-        mListView.setVisibility(View.VISIBLE);
+        mRecyclerView.setVisibility(View.VISIBLE);
 
-        Realm realm = Realm.getDefaultInstance();
-
-        RealmResults<Friend> notSyncedContacts = realm.where(Friend.class)
+        RealmResults<Friend> notSyncedContacts = mRealm.where(Friend.class)
                 .equalTo("mSynced", false)
                 .equalTo("mFacebook", false)
                 .findAllSorted("mName", Sort.ASCENDING);
 
-        mAdapter = new MyAdapter(this, notSyncedContacts);
-        mListView.setAdapter(mAdapter);
-        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (mClickedFriend == null) {
-                    mClickedFriend = (Friend) parent.getItemAtPosition(position);
-                    Intent contactPicketIntent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
-                    startActivityForResult(contactPicketIntent, REQUEST_CONTACT_PICKER);
-                }
+        mContactsAdapter = new ContactsAdapter(this, notSyncedContacts, true);
+        mContactsAdapter.setOnItemClickListener((view, friend) -> {
+            if (mClickedFriend == null) {
+                mClickedFriend = friend;
+                Intent contactPicketIntent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
+                startActivityForResult(contactPicketIntent, REQUEST_CONTACT_PICKER);
             }
         });
-    }
-
-    private class MyAdapter extends RealmBaseAdapter<Friend> {
-
-        class ViewHolder {
-            ImageView imageView;
-            TextView textView;
-            int position;
-        }
-
-        public MyAdapter(Context context, OrderedRealmCollection<Friend> objects) {
-            super(context, objects);
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            ViewHolder holder;
-            if (convertView == null) {
-                convertView = LayoutInflater.from(getBaseContext()).inflate(R.layout.row_friends, parent, false);
-                holder = new ViewHolder();
-                holder.imageView = (ImageView) convertView.findViewById(R.id.thumbnail);
-                holder.textView = (TextView) convertView.findViewById(R.id.text);
-                convertView.setTag(holder);
-            } else {
-                holder = (ViewHolder) convertView.getTag();
-            }
-
-            holder.position = position;
-            Friend friend = getItem(position);
-            holder.textView.setText(friend.getName());
-            Picasso.with(getBaseContext()).load(friend.getPhoto()).placeholder(R.drawable.contact).into(holder.imageView);
-
-            return convertView;
-        }
+        mRecyclerView.setAdapter(mContactsAdapter);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(layoutManager);
+        mRecyclerView.addItemDecoration(new DividerItemDecoration(mRecyclerView.getContext(), VERTICAL));
     }
 }
