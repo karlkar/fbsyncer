@@ -26,6 +26,9 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".FacebookPicker"
+            android:configChanges="keyboardHidden|orientation|screenSize" />
+
         <service
             android:name=".FBSyncService"
             android:enabled="true"></service>

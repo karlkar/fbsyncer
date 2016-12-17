@@ -101,8 +101,7 @@ public class FBSyncService extends Service {
     private void getContacts() {
         mContactsLoaded.set(false);
         Realm realm = Realm.getDefaultInstance();
-        RealmResults<Friend> contacts = realm.where(Friend.class)
-                .equalTo("mFacebook", false)
+        RealmResults<Contact> contacts = realm.where(Contact.class)
                 .findAll();
         Cursor cursor = getContentResolver().query(ContactsContract.RawContacts.CONTENT_URI, PROJECTION, null, null, null);
         String rawContactId;
@@ -110,23 +109,22 @@ public class FBSyncService extends Service {
         String thumbnailPath;
 
         realm.beginTransaction();
-        for (Friend contact : contacts)
+        for (Contact contact : contacts)
             contact.setOld(true);
         while (cursor.moveToNext()) {
             rawContactId = cursor.getString(CONTACT_ID_INDEX);
             displayName = cursor.getString(DISPLAY_NAME_PRIMARY_INDEX);
             thumbnailPath = getThumbnailOf(rawContactId);
-            Friend newContact = new Friend(rawContactId, displayName, thumbnailPath);
-            RealmResults<Friend> preUpdateContact = realm.where(Friend.class)
+            Contact newContact = new Contact(rawContactId, displayName, thumbnailPath);
+            Contact preUpdateContact = realm.where(Contact.class)
                     .equalTo("mId", rawContactId)
-                    .findAll();
-            if (preUpdateContact.size() > 0) {
-                if (preUpdateContact.first().getRelated() != null)
-                    newContact.setRelated(preUpdateContact.first().getRelated());
+                    .findFirst();
+            if (preUpdateContact != null) {
+                newContact.setRelated(preUpdateContact.getRelated());
             }
             realm.insertOrUpdate(newContact);
         }
-        RealmResults<Friend> oldContacts = contacts.where()
+        RealmResults<Contact> oldContacts = contacts.where()
                 .equalTo("mOld", true)
                 .findAll();
         Log.d(TAG, "getContacts: " + oldContacts.size() + " contacts were deleted from phone.");
@@ -165,7 +163,6 @@ public class FBSyncService extends Service {
         mFbLoaded.set(false);
         Realm realm = Realm.getDefaultInstance();
         RealmResults<Friend> friends = realm.where(Friend.class)
-                .equalTo("mFacebook", true)
                 .findAll();
         realm.beginTransaction();
         for (Friend friend : friends)
@@ -280,34 +277,40 @@ public class FBSyncService extends Service {
     private void performSync() {
         List<Callable<Void>> callables = new ArrayList<>();
         Realm realm = Realm.getDefaultInstance();
-        RealmResults<Friend> all = realm.where(Friend.class).findAll();
-        RealmResults<Friend> contacts = realm.where(Friend.class)
-                .equalTo("mFacebook", false).findAll();
-        RealmResults<Friend> friends = realm.where(Friend.class)
-                .equalTo("mFacebook", true).findAll();
+        RealmResults<Contact> contacts = realm.where(Contact.class).findAll();
+        RealmResults<Friend> friends = realm.where(Friend.class).findAll();
 
         realm.beginTransaction();
 
-        for (Friend friend : all)
+        for (Contact contact : contacts)
+            contact.setSynced(false);
+        for (Friend friend : friends)
             friend.setSynced(false);
 
-        for (final Friend contact : contacts) {
-            int idx;
-            if ((idx = friends.indexOf(contact)) != -1) {
-                final Friend friend = friends.get(idx);
+        for (Contact contact : contacts) {
+            RealmResults<Friend> sameNameFriends = realm.where(Friend.class)
+                    .equalTo("mName", contact.getName())
+                    .findAll();
+            if (sameNameFriends.size() == 1)
+                contact.setRelated(sameNameFriends.first());
+            final Contact copiedContact = realm.copyFromRealm(contact);
+            if (sameNameFriends.size() == 1) {
                 callables.add(() -> {
-                    setContactPhoto(contact.getId(), friend.getPhoto());
+                    setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
                     return null;
                 });
                 contact.setSynced(true);
-                contact.setRelated(friend);
+                contact.getRelated().setSynced(true);
+            } else if (sameNameFriends.size() > 1) {
+                Log.d(TAG, "performSync: [" + contact.getName() + "] Friend exists multiple times and connot be synced.");
             } else if (contact.getRelated() != null) {
-                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using previous settings");
+                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using previous settings. " + copiedContact.getRelated().getPhoto());
                 callables.add(() -> {
-                    setContactPhoto(contact.getId(), contact.getRelated().getPhoto());
+                    setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
                     return null;
                 });
                 contact.setSynced(true);
+                contact.getRelated().setSynced(true);
             } else
                 contact.setSynced(false);
         }
@@ -391,20 +394,25 @@ public class FBSyncService extends Service {
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:46.0) Gecko/20100101 Firefox/46.0");
                 BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
 
+                StringBuilder builder = new StringBuilder();
                 String line;
-                int counter = 0;
                 Pattern p = Pattern.compile("src=\"(.+?" + m.group(1) + ".+?)\"");
                 while ((line = reader.readLine()) != null) {
-                    m = p.matcher(line);
-                    while (m.find()) {
-                        if (++counter >= 2) {
-                            reader.close();
-                            return m.group(1).replace("&amp;", "&");
-                        }
-                    }
+                    builder.append(line);
                 }
                 reader.close();
                 connection.disconnect();
+
+                String body = builder.toString();
+                m = p.matcher(body);
+                while (m.find()) {
+                    if (m.group(1).contains("50x50/"))
+                        continue;
+                    if (!m.group(1).contains("scontent"))
+                        continue;
+                    reader.close();
+                    return m.group(1).replace("&amp;", "&");
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

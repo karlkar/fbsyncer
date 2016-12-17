@@ -1,8 +1,6 @@
 package com.kksionek.fbsyncer;
 
 import android.content.Context;
-import android.content.Intent;
-import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
@@ -15,6 +13,7 @@ import android.widget.TextView;
 import com.squareup.picasso.Picasso;
 
 import io.realm.OrderedRealmCollection;
+import io.realm.RealmObject;
 import io.realm.RealmRecyclerViewAdapter;
 
 class ContactViewHolder extends RecyclerView.ViewHolder {
@@ -30,10 +29,10 @@ class ContactViewHolder extends RecyclerView.ViewHolder {
     }
 }
 
-public class ContactsAdapter extends RealmRecyclerViewAdapter<Friend, ContactViewHolder> {
+public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecyclerViewAdapter<T, ContactViewHolder> {
 
-    public interface OnItemClickListener {
-        void onClick(View view, Friend friend);
+    public interface OnItemClickListener<T> {
+        void onClick(View view, T contact);
     }
 
     private Context mContext;
@@ -57,17 +56,17 @@ public class ContactsAdapter extends RealmRecyclerViewAdapter<Friend, ContactVie
 
     @Override
     public void onBindViewHolder(ContactViewHolder holder, int position) {
-        Friend friend = getItem(position);
+        T contact = getItem(position);
 
-        holder.textView.setText(friend.getName());
+        holder.textView.setText(contact.getName());
         Picasso.with(mContext)
-                .load(friend.getPhoto())
+                .load(contact.getPhoto())
                 .placeholder(R.drawable.contact)
                 .into(holder.imageView);
 
         holder.parentView.setOnClickListener(view -> {
             if (mListener != null)
-                mListener.onClick(view, friend);
+                mListener.onClick(view, contact);
         });
     }
 }

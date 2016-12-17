@@ -1,22 +1,20 @@
 package com.kksionek.fbsyncer;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import io.realm.Realm;
 import io.realm.RealmObject;
+import io.realm.RealmResults;
 import io.realm.annotations.PrimaryKey;
 
-public class Friend extends RealmObject implements Comparable<Friend> {
+public class Friend extends RealmObject implements Person, Comparable<Person> {
     @PrimaryKey
+    private String mGeneratedId;
     private String mId;
     private String mName;
     private String mPhoto;
-    private boolean mFacebook;
 
-    private Friend mRelated;
     private boolean mSynced;
     private boolean mOld;
 
@@ -24,29 +22,11 @@ public class Friend extends RealmObject implements Comparable<Friend> {
         mId = null;
         mName = null;
         mPhoto = null;
-        mFacebook = false;
-        mRelated = null;
-        mSynced = false;
-        mOld = false;
-    }
-
-    public Friend(String id, String name) {
-        this(id, name, null);
-    }
-
-    public Friend(@NonNull String id, @NonNull String name, @Nullable String photo) {
-        mId = id;
-        mName = name;
-        mPhoto = photo;
-        mFacebook = false;
-        mRelated = null;
         mSynced = false;
         mOld = false;
     }
 
     public Friend(JSONObject jsonObject) {
-        mFacebook = true;
-        mRelated = null;
         mSynced = false;
         mOld = false;
         try {
@@ -59,18 +39,25 @@ public class Friend extends RealmObject implements Comparable<Friend> {
             mPhoto = "";
             mName = "";
         }
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Friend> friendsWithTheSameName = realm.where(Friend.class)
+                .equalTo("mName", mName)
+                .equalTo("mOld", false)
+                .findAll();
+        mGeneratedId = Integer.toString((mName + friendsWithTheSameName.size()).hashCode());
+        realm.close();
     }
 
     @Override
-    public int compareTo(Friend another) {
+    public int compareTo(Person another) {
         return mName.compareTo(another.getName());
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Friend))
+        if (!(o instanceof Person))
             return false;
-        return mName.equals(((Friend) o).getName());
+        return mName.equals(((Person) o).getName());
     }
 
     public String getName() {
@@ -82,7 +69,7 @@ public class Friend extends RealmObject implements Comparable<Friend> {
     }
 
     public String getId() {
-        return mId;
+        return mGeneratedId;
     }
 
     public void setSynced(boolean synced) {
@@ -91,14 +78,5 @@ public class Friend extends RealmObject implements Comparable<Friend> {
 
     public void setOld(boolean old) {
         mOld = old;
-    }
-
-    public void setRelated(@Nullable Friend related) {
-        mRelated = related;
-    }
-
-    @Nullable
-    public Friend getRelated() {
-        return mRelated;
     }
 }
