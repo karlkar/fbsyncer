@@ -17,9 +17,9 @@ import io.realm.RealmObject;
 import io.realm.RealmRecyclerViewAdapter;
 
 class ContactViewHolder extends RecyclerView.ViewHolder {
-    public View parentView;
-    public ImageView imageView;
-    public TextView textView;
+    public final View parentView;
+    public final ImageView imageView;
+    public final TextView textView;
 
     public ContactViewHolder(View itemView) {
         super(itemView);
@@ -35,7 +35,7 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
         void onClick(View view, T contact);
     }
 
-    private Context mContext;
+    private final Context mContext;
     private OnItemClickListener mListener;
 
     public ContactsAdapter(@NonNull Context context, @Nullable OrderedRealmCollection data, boolean autoUpdate) {

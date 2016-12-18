@@ -30,7 +30,7 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:25.1.0'
     compile 'com.android.support:design:25.1.0'
-    compile 'com.facebook.android:facebook-android-sdk:4.+'
+    compile 'com.facebook.android:facebook-android-sdk:4.18.0'
     compile 'com.squareup.picasso:picasso:2.5.2'
     compile 'io.realm:android-adapters:1.4.0'
 }

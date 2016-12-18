@@ -22,7 +22,6 @@ import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.GraphRequest;
-import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
@@ -124,6 +123,7 @@ public class FBSyncService extends Service {
             }
             realm.insertOrUpdate(newContact);
         }
+        cursor.close();
         RealmResults<Contact> oldContacts = contacts.where()
                 .equalTo("mOld", true)
                 .findAll();
@@ -239,30 +239,27 @@ public class FBSyncService extends Service {
     }
 
     private void requestFriends(@Nullable String nextToken) {
-        GraphRequest req = new GraphRequest(mAccessToken, "/me/taggable_friends", null, HttpMethod.GET, new GraphRequest.Callback() {
-            @Override
-            public void onCompleted(GraphResponse response) {
+        GraphRequest req = new GraphRequest(mAccessToken, "/me/taggable_friends", null, HttpMethod.GET, response -> {
 //                Log.d(TAG, "onCompleted: response = " + response.toString());
-                if (response.getError() != null)
-                    Log.e(TAG, "onCompleted: Couldn't obtain friend data.");
-                else {
-                    try {
-                        JSONArray friendArray = response.getJSONObject().getJSONArray("data");
-                        Realm realm = Realm.getDefaultInstance();
-                        realm.beginTransaction();
-                        for (int i = 0; i < friendArray.length(); ++i) {
+            if (response.getError() != null)
+                Log.e(TAG, "onCompleted: Couldn't obtain friend data.");
+            else {
+                try {
+                    JSONArray friendArray = response.getJSONObject().getJSONArray("data");
+                    Realm realm = Realm.getDefaultInstance();
+                    realm.beginTransaction();
+                    for (int i = 0; i < friendArray.length(); ++i) {
 //                            Log.d(TAG, "onCompleted: FRIEND = " + friendArray.get(i).toString());
-                            realm.insertOrUpdate(new Friend(friendArray.getJSONObject(i)));
-                        }
-                        realm.commitTransaction();
-                        realm.close();
-                        if (!response.getJSONObject().isNull("paging")) {
-                            String token = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
-                            requestFriends(token);
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                        realm.insertOrUpdate(new Friend(friendArray.getJSONObject(i)));
                     }
+                    realm.commitTransaction();
+                    realm.close();
+                    if (!response.getJSONObject().isNull("paging")) {
+                        String token = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
+                        requestFriends(token);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
             }
         });

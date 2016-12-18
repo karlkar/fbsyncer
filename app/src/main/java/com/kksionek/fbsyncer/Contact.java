@@ -8,9 +8,9 @@ import io.realm.annotations.PrimaryKey;
 
 public class Contact extends RealmObject implements Person, Comparable<Person> {
     @PrimaryKey
-    private String mId;
-    private String mName;
-    private String mPhoto;
+    private final String mId;
+    private final String mName;
+    private final String mPhoto;
 
     private Friend mRelated;
     private boolean mSynced;
@@ -42,15 +42,13 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
     }
 
     @Override
-    public int compareTo(Person another) {
+    public int compareTo(@NonNull Person another) {
         return mName.compareTo(another.getName());
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Person))
-            return false;
-        return mName.equals(((Person) o).getName());
+        return o instanceof Person && mName.equals(((Person) o).getName());
     }
 
     public void setOld(boolean old) {

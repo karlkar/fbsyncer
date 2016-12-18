@@ -18,6 +18,9 @@ import io.realm.Sort;
 
 public class FacebookPicker extends AppCompatActivity {
 
+    public static final String EXTRA_ID = "ID";
+    public static final String EXTRA_RESULT_ID = "resultID";
+
     private String mContactId;
 
     private TextView mTextView;
@@ -29,7 +32,7 @@ public class FacebookPicker extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fb_picker);
-        mContactId = getIntent().getStringExtra("ID");
+        mContactId = getIntent().getStringExtra(EXTRA_ID);
 
         mTextView = (TextView) findViewById(R.id.infoText);
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
@@ -39,7 +42,7 @@ public class FacebookPicker extends AppCompatActivity {
                 .equalTo("mId", mContactId)
                 .findFirst();
 
-        mTextView.setText("Pick facebook friend who will be connected to " + contact.getName() + " from your contacts");
+        mTextView.setText(getString(R.string.activity_facebookpicker_text, contact.getName()));
 
         RealmResults<Friend> notSyncedFriends = mRealm.where(Friend.class)
                 .equalTo("mSynced", false)
@@ -49,13 +52,13 @@ public class FacebookPicker extends AppCompatActivity {
             @Override
             public void onClick(View view, Friend friend) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPicker.this);
-                builder.setTitle("Warning");
-                builder.setMessage("Do you really want to connect " + contact.getName() + " with " + friend.getName() + "?");
+                builder.setTitle(R.string.alert_create_bond_title);
+                builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));
                 builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {
                     builder.create().show();
                     Intent intent = new Intent();
-                    intent.putExtra("ID", mContactId);
-                    intent.putExtra("resultID", friend.getId());
+                    intent.putExtra(EXTRA_ID, mContactId);
+                    intent.putExtra(EXTRA_RESULT_ID, friend.getId());
                     setResult(Activity.RESULT_OK, intent);
                     finish();
                 });

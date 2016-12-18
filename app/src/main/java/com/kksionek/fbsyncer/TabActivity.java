@@ -1,9 +1,7 @@
 package com.kksionek.fbsyncer;
 
-import android.app.ActionBar;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
@@ -20,6 +18,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -32,7 +31,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     private FBSyncService mService;
     private Realm mRealm;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
+    private final ServiceConnection mConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
             FBSyncService.MyLocalBinder binder = (FBSyncService.MyLocalBinder) iBinder;
@@ -102,11 +101,11 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_FACEBOOK_PICKER) {
             if (resultCode == RESULT_OK) {
-                String contactId = data.getStringExtra("ID");
+                String contactId = data.getStringExtra(FacebookPicker.EXTRA_ID);
                 Contact contact = mRealm.where(Contact.class)
                         .equalTo("mId", contactId)
                         .findFirst();
-                String friendId = data.getStringExtra("resultID");
+                String friendId = data.getStringExtra(FacebookPicker.EXTRA_RESULT_ID);
                 Friend friend = mRealm.where(Friend.class)
                         .equalTo("mGeneratedId", friendId)
                         .findFirst();
@@ -130,6 +129,8 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                     builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> dialogInterface.dismiss());
                     builder.create().show();
                 }
+
+                Toast.makeText(this, R.string.sync_preference_saved, Toast.LENGTH_SHORT).show();
             }
             return;
         }
@@ -138,12 +139,12 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
 
     @Override
     public void onSyncStarted() {
-        Snackbar.make(mPager, "Sync started", Snackbar.LENGTH_LONG).show();
+        Snackbar.make(mPager, R.string.activity_tab_sync_started, Snackbar.LENGTH_LONG).show();
     }
 
     @Override
     public void onSyncEnded() {
-        Snackbar.make(mPager, "Sync ended", Snackbar.LENGTH_LONG).show();
+        Snackbar.make(mPager, R.string.activity_tab_sync_ended, Snackbar.LENGTH_LONG).show();
     }
 
     private class ViewPagerAdapter extends PagerAdapter {
@@ -180,12 +181,12 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                             .equalTo("mSynced", false)
                             .findAllSorted("mName", Sort.ASCENDING);
 
-                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<Contact>(TabActivity.this, notSyncedContacts, true);
+                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<>(TabActivity.this, notSyncedContacts, true);
                     contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
                         @Override
                         public void onClick(View view, Contact contact) {
                             Intent facebookPicketIntent = new Intent(TabActivity.this, FacebookPicker.class);
-                            facebookPicketIntent.putExtra("ID", contact.getId());
+                            facebookPicketIntent.putExtra(FacebookPicker.EXTRA_ID, contact.getId());
                             startActivityForResult(facebookPicketIntent, REQUEST_FACEBOOK_PICKER);
                         }
                     });
@@ -197,13 +198,13 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                             .equalTo("mManual", true)
                             .findAllSorted("mName", Sort.ASCENDING);
 
-                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<Contact>(TabActivity.this, manualContacts, true);
+                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<>(TabActivity.this, manualContacts, true);
                     contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
                         @Override
                         public void onClick(View view, Contact contact) {
                             AlertDialog.Builder builder = new AlertDialog.Builder(TabActivity.this);
-                            builder.setTitle("Warning");
-                            builder.setMessage("Do you want to remove this bond?\nYou will have to remove the assigned photo manually.");
+                            builder.setTitle(R.string.alert_release_bond_title);
+                            builder.setMessage(R.string.alert_release_bond_message);
                             //TODO: make another dialog/preference remembering if app should remove photo automatically
                             builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
                                 mRealm.executeTransaction(realm -> {
@@ -232,9 +233,9 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
         public CharSequence getPageTitle(int position) {
             switch (position) {
                 case 0:
-                    return "Not synced";
+                    return getString(R.string.activity_tab_tab_not_synced);
                 case 1:
-                    return "Manual";
+                    return getString(R.string.activity_tab_tab_manual);
                 default:
                     return super.getPageTitle(position);
             }

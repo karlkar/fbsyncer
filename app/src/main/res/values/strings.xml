@@ -7,4 +7,23 @@
         name and facebook doesn\'t allow me to remember this setting. Sorry for that. But you can
         always synchronize this contact manually.
     </string>
+    <string name="alert_create_bond_title">Warning</string>
+    <string name="alert_create_bond_message">Do you really want to connect "%1$s" with "%2$s"?</string>
+    <string name="alert_release_bond_title">Warning</string>
+    <string name="alert_release_bond_message">Do you want to remove this bond?\nYou will have to remove the assigned photo manually.</string>
+    <string name="activity_facebookpicker_text">Pick facebook friend who will be connected to "%1$s" from your contacts</string>
+    <string name="activity_tab_sync_started">Sync started</string>
+    <string name="activity_tab_sync_ended">Sync ended</string>
+    <string name="activity_tab_tab_not_synced">Not synced</string>
+    <string name="activity_tab_tab_manual">Manual</string>
+    <string name="activity_main_permission_rejected_message">You didn\'t grant me full access to your contacts. I cannot sync them.</string>
+    <string name="activity_main_sync_started">Sync started</string>
+    <string name="activity_main_sync_ended">Sync ended</string>
+    <string name="activity_main_button_sync">Sync</string>
+    <string name="activity_main_prerequisites_fulfilled_message">All prerequirements are fulfilled - I have access to your contacts and you\'re logged in to Facebook account. We can start the process now!</string>
+    <string name="activity_main_button_login_facebook">Login to facebook</string>
+    <string name="activity_main_facebook_permission_request_message">In order to sync your contact images I need an access to your Facebook account. I will use it only to obtain profile images of your friends. Please press the button to login to Facebook.</string>
+    <string name="activity_main_button_grant_contacts_access">Grant access</string>
+    <string name="activity_main_grant_contacts_access_message">In order to sync your contact images I need an access to your contacts. I will have to read them and modify if I will find a proper image. Please press the button to grant me access.</string>
+    <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
 </resources>

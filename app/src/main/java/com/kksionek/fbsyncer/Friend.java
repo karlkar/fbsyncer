@@ -1,5 +1,7 @@
 package com.kksionek.fbsyncer;
 
+import android.support.annotation.NonNull;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -49,15 +51,13 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
     }
 
     @Override
-    public int compareTo(Person another) {
+    public int compareTo(@NonNull Person another) {
         return mName.compareTo(another.getName());
     }
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Person))
-            return false;
-        return mName.equals(((Person) o).getName());
+        return o instanceof Person && mName.equals(((Person) o).getName());
     }
 
     public String getName() {
