@@ -15,6 +15,7 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
     private Friend mRelated;
     private boolean mSynced;
     private boolean mOld;
+    private boolean mManual;
 
     public Contact() {
         mId = null;
@@ -23,6 +24,7 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
         mRelated = null;
         mSynced = false;
         mOld = false;
+        mManual = false;
     }
 
     public Contact(String id, String name) {
@@ -36,6 +38,7 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
         mRelated = null;
         mSynced = false;
         mOld = false;
+        mManual = false;
     }
 
     @Override
@@ -76,5 +79,9 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
 
     public String getPhoto() {
         return mPhoto;
+    }
+
+    public void setManual(boolean manual) {
+        mManual = manual;
     }
 }

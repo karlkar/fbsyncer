@@ -2,6 +2,7 @@ package com.kksionek.fbsyncer;
 
 import android.Manifest;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
@@ -10,6 +11,7 @@ import android.os.IBinder;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.DividerItemDecoration;
@@ -41,10 +43,8 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
     private static final String TAG = "MainActivity";
     private TextView mTextView;
     private Button mQuestionBtn;
-    private RecyclerView mRecyclerView;
     private CallbackManager mCallbackManager;
 
-    private ContactsAdapter mContactsAdapter;
     private Realm mRealm;
 
     private FBSyncService mService;
@@ -70,7 +70,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
 
         mTextView = (TextView) findViewById(R.id.questionTextView);
         mQuestionBtn = (Button) findViewById(R.id.questionButton);
-        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
 
         mCallbackManager = CallbackManager.Factory.create();
 
@@ -134,7 +133,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                 ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS}, REQUEST_PERMISSIONS_CONTACTS);
             }
         });
-        mRecyclerView.setVisibility(View.GONE);
     }
 
     private void showFbLoginScreen() {
@@ -146,7 +144,6 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                 LoginManager.getInstance().logInWithReadPermissions(MainActivity.this, Arrays.asList("user_friends"));
             }
         });
-        mRecyclerView.setVisibility(View.GONE);
     }
 
     private void showSyncScreen() {
@@ -156,45 +153,10 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             if (mService != null)
                 mService.startSync();
         });
-        mRecyclerView.setVisibility(View.GONE);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_FACEBOOK_PICKER) {
-            if (resultCode == RESULT_OK) {
-                String contactId = data.getStringExtra("ID");
-                Contact contact = mRealm.where(Contact.class)
-                        .equalTo("mId", contactId)
-                        .findFirst();
-                String friendId = data.getStringExtra("resultID");
-                Friend friend = mRealm.where(Friend.class)
-                        .equalTo("mGeneratedId", friendId)
-                        .findFirst();
-                RealmResults<Friend> sameNameFriends = mRealm.where(Friend.class)
-                            .equalTo("mName", friend.getName())
-                            .findAll();
-                if (sameNameFriends.size() == 1) {
-                    mRealm.beginTransaction();
-                    contact.setRelated(friend);
-
-                    // TODO: sync contact
-                    //temporal hackaround
-                    contact.setSynced(true);
-                    friend.setSynced(true);
-                    // end of hackaround
-
-                    Toast.makeText(this, "Sync preference saved.", Toast.LENGTH_LONG).show();
-
-                    mRealm.commitTransaction();
-                } else {
-                    // TODO: sync contact
-                    // TODO: show alert dialog
-                    Toast.makeText(this, "Friend with that name exists multiple times.", Toast.LENGTH_LONG).show();
-                }
-            }
-            return;
-        }
         super.onActivityResult(requestCode, resultCode, data);
         mCallbackManager.onActivityResult(requestCode, resultCode, data);
     }
@@ -225,30 +187,8 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
     }
 
     private void showNotSyncedScreen() {
-        mTextView.setText("Not all contacts were synced. Here's the list of those");
-        mQuestionBtn.setVisibility(View.GONE);
-        mQuestionBtn.setOnClickListener(null);
-        mRecyclerView.setVisibility(View.VISIBLE);
-
-        RealmResults<Contact> notSyncedContacts = mRealm.where(Contact.class)
-                .equalTo("mSynced", false)
-                .findAllSorted("mName", Sort.ASCENDING);
-
-        mContactsAdapter = new ContactsAdapter<Contact>(this, notSyncedContacts, true);
-        mContactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-            @Override
-            public void onClick(View view, Contact contact) {
-                Intent facebookPicketIntent = new Intent(MainActivity.this, FacebookPicker.class);
-                facebookPicketIntent.putExtra("ID", contact.getId());
-                startActivityForResult(facebookPicketIntent, REQUEST_FACEBOOK_PICKER);
-            }
-        });
-        mRecyclerView.setAdapter(mContactsAdapter);
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
-        mRecyclerView.setLayoutManager(layoutManager);
-        mRecyclerView.addItemDecoration(
-                new DividerItemDecoration(
-                        mRecyclerView.getContext(),
-                        DividerItemDecoration.VERTICAL));
+        Intent intent = new Intent(this, TabActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

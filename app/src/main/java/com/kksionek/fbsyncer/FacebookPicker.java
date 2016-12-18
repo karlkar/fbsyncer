@@ -36,7 +36,6 @@ public class FacebookPicker extends AppCompatActivity {
         mRealm = Realm.getDefaultInstance();
         Contact contact = mRealm.where(Contact.class)
                 .equalTo("mId", mContactId)
-                .equalTo("mSynced", false)
                 .findFirst();
 
         mTextView.setText("Pick facebook friend who will be connected to " + contact.getName() + " from your contacts");

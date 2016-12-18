@@ -300,17 +300,19 @@ public class FBSyncService extends Service {
                     return null;
                 });
                 contact.setSynced(true);
+                contact.setManual(false);
                 contact.getRelated().setSynced(true);
-            } else if (sameNameFriends.size() > 1) {
-                Log.d(TAG, "performSync: [" + contact.getName() + "] Friend exists multiple times and connot be synced.");
             } else if (contact.getRelated() != null) {
-                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using previous settings. " + copiedContact.getRelated().getPhoto());
+                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using manual settings.");
                 callables.add(() -> {
                     setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
                     return null;
                 });
                 contact.setSynced(true);
+                contact.setManual(true);
                 contact.getRelated().setSynced(true);
+            } else if (sameNameFriends.size() > 1) {
+                Log.d(TAG, "performSync: [" + contact.getName() + "] Friend exists multiple times and connot be synced automatically.");
             } else
                 contact.setSynced(false);
         }

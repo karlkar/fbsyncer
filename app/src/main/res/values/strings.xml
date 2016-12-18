@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">FBSyncer</string>
     <string name="facebook_app_id">1741655866050751</string>
+    <string name="problem">Problem</string>
+    <string name="sync_preference_saved">Sync preference saved.</string>
+    <string name="problem_message">You must know that there are multiple facebook friends with this
+        name and facebook doesn\'t allow me to remember this setting. Sorry for that. But you can
+        always synchronize this contact manually.
+    </string>
 </resources>
