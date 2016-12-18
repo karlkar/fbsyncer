@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
@@ -47,11 +48,19 @@ public class FacebookPicker extends AppCompatActivity {
         mAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
             @Override
             public void onClick(View view, Friend friend) {
-                Intent intent = new Intent();
-                intent.putExtra("ID", mContactId);
-                intent.putExtra("resultID", friend.getId());
-                setResult(Activity.RESULT_OK, intent);
-                finish();
+                AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPicker.this);
+                builder.setTitle("Warning");
+                builder.setMessage("Do you really want to connect " + contact.getName() + " with " + friend.getName() + "?");
+                builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {
+                    builder.create().show();
+                    Intent intent = new Intent();
+                    intent.putExtra("ID", mContactId);
+                    intent.putExtra("resultID", friend.getId());
+                    setResult(Activity.RESULT_OK, intent);
+                    finish();
+                });
+                builder.setNegativeButton(android.R.string.no, (dialogInterface, i) -> dialogInterface.dismiss());
+                builder.create().show();
             }
         });
         mRecyclerView.setAdapter(mAdapter);
