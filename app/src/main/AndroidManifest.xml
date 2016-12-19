@@ -19,23 +19,24 @@
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="keyboardHidden|orientation|screenSize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
+            android:configChanges="keyboardHidden|orientation|screenSize"/>
 
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
         <activity
             android:name=".FacebookPicker"
             android:configChanges="keyboardHidden|orientation|screenSize"/>
 
+        <activity
+            android:name=".TabActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".FBSyncService"
             android:enabled="true"/>
-
-        <activity android:name=".TabActivity">
-        </activity>
     </application>
 
 </manifest>

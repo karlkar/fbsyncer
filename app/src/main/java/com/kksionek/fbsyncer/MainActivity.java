@@ -84,8 +84,8 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
-                || ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)) {
+                (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)) {
             showPermissionRequestScreen();
         } else {
             AccessToken accessToken = AccessToken.getCurrentAccessToken();
