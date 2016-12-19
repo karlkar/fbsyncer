@@ -26,4 +26,5 @@
     <string name="activity_main_button_grant_contacts_access">Grant access</string>
     <string name="activity_main_grant_contacts_access_message">In order to sync your contact images I need an access to your contacts. I will have to read them and modify if I will find a proper image. Please press the button to grant me access.</string>
     <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
+    <string name="menu_sync">Sync now</string>
 </resources>

@@ -20,6 +20,9 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
@@ -36,6 +39,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
 
     private FBSyncService mService;
     private Realm mRealm;
+    private MenuItemSyncCtrl mMenuItemSyncCtrl = null;
 
     private final ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -91,6 +95,26 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
             public void onTabReselected(TabLayout.Tab tab) {
             }
         });
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        MenuItem menuItem = menu.findItem(R.id.menu_sync);
+        if (menuItem != null)
+            mMenuItemSyncCtrl = new MenuItemSyncCtrl(this, menuItem);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.menu_sync) {
+            if (mService != null)
+                mService.startSync();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -154,11 +178,15 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
 
     @Override
     public void onSyncStarted() {
+        if (mMenuItemSyncCtrl != null)
+            mMenuItemSyncCtrl.startAnimation();
         Snackbar.make(mPager, R.string.activity_tab_sync_started, Snackbar.LENGTH_LONG).show();
     }
 
     @Override
     public void onSyncEnded() {
+        if (mMenuItemSyncCtrl != null)
+            mMenuItemSyncCtrl.endAnimation();
         Snackbar.make(mPager, R.string.activity_tab_sync_ended, Snackbar.LENGTH_LONG).show();
     }
 
