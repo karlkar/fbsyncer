@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.view;
 
 public interface ISyncListener {
     void onSyncStarted();

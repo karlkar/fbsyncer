@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.model;
 
 import android.app.Service;
 import android.content.ContentUris;
@@ -26,6 +26,9 @@ import com.facebook.HttpMethod;
 import com.facebook.appevents.AppEventsLogger;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
+import com.kksionek.fbsyncer.data.Contact;
+import com.kksionek.fbsyncer.data.Friend;
+import com.kksionek.fbsyncer.view.ISyncListener;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -437,7 +440,7 @@ public class FBSyncService extends Service {
     }
 
     public class MyLocalBinder extends Binder {
-        FBSyncService getService() {
+        public FBSyncService getService() {
             return FBSyncService.this;
         }
     }

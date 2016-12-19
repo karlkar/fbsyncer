@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.model;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
@@ -10,6 +10,8 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.kksionek.fbsyncer.R;
+import com.kksionek.fbsyncer.data.Person;
 import com.squareup.picasso.Picasso;
 
 import io.realm.OrderedRealmCollection;

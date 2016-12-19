@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.data;
 
 import android.support.annotation.NonNull;
 

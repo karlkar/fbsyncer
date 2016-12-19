@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.view;
 
 import android.Manifest;
 import android.content.ComponentName;
@@ -10,7 +10,6 @@ import android.os.Build;
 import android.os.IBinder;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
@@ -28,6 +27,11 @@ import android.view.ViewGroup;
 import android.widget.Toast;
 
 import com.facebook.AccessToken;
+import com.kksionek.fbsyncer.data.Contact;
+import com.kksionek.fbsyncer.model.ContactsAdapter;
+import com.kksionek.fbsyncer.model.FBSyncService;
+import com.kksionek.fbsyncer.data.Friend;
+import com.kksionek.fbsyncer.R;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -140,11 +144,11 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_FACEBOOK_PICKER) {
             if (resultCode == RESULT_OK) {
-                String contactId = data.getStringExtra(FacebookPicker.EXTRA_ID);
+                String contactId = data.getStringExtra(FacebookPickerActivity.EXTRA_ID);
                 Contact contact = mRealm.where(Contact.class)
                         .equalTo("mId", contactId)
                         .findFirst();
-                String friendId = data.getStringExtra(FacebookPicker.EXTRA_RESULT_ID);
+                String friendId = data.getStringExtra(FacebookPickerActivity.EXTRA_RESULT_ID);
                 Friend friend = mRealm.where(Friend.class)
                         .equalTo("mGeneratedId", friendId)
                         .findFirst();
@@ -228,8 +232,8 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                     contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
                         @Override
                         public void onClick(View view, Contact contact) {
-                            Intent facebookPicketIntent = new Intent(TabActivity.this, FacebookPicker.class);
-                            facebookPicketIntent.putExtra(FacebookPicker.EXTRA_ID, contact.getId());
+                            Intent facebookPicketIntent = new Intent(TabActivity.this, FacebookPickerActivity.class);
+                            facebookPicketIntent.putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId());
                             startActivityForResult(facebookPicketIntent, REQUEST_FACEBOOK_PICKER);
                         }
                     });

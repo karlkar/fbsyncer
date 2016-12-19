@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.fbsyncer.view;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -12,11 +12,16 @@ import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.TextView;
 
+import com.kksionek.fbsyncer.data.Contact;
+import com.kksionek.fbsyncer.model.ContactsAdapter;
+import com.kksionek.fbsyncer.data.Friend;
+import com.kksionek.fbsyncer.R;
+
 import io.realm.Realm;
 import io.realm.RealmResults;
 import io.realm.Sort;
 
-public class FacebookPicker extends AppCompatActivity {
+public class FacebookPickerActivity extends AppCompatActivity {
 
     public static final String EXTRA_ID = "ID";
     public static final String EXTRA_RESULT_ID = "resultID";
@@ -51,7 +56,7 @@ public class FacebookPicker extends AppCompatActivity {
         mAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
             @Override
             public void onClick(View view, Friend friend) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPicker.this);
+                AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPickerActivity.this);
                 builder.setTitle(R.string.alert_create_bond_title);
                 builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));
                 builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {

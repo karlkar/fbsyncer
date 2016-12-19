@@ -18,15 +18,15 @@
             android:value="@string/facebook_app_id"/>
 
         <activity
-            android:name=".MainActivity"
+            android:name=".view.MainActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"/>
 
         <activity
-            android:name=".FacebookPicker"
+            android:name=".view.FacebookPickerActivity"
             android:configChanges="keyboardHidden|orientation|screenSize"/>
 
         <activity
-            android:name=".TabActivity"
+            android:name=".view.TabActivity"
             android:configChanges="keyboardHidden|orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -35,7 +35,7 @@
         </activity>
 
         <service
-            android:name=".FBSyncService"
+            android:name=".model.FBSyncService"
             android:enabled="true"/>
     </application>
 
