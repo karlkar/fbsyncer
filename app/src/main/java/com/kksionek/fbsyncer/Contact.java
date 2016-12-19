@@ -8,9 +8,9 @@ import io.realm.annotations.PrimaryKey;
 
 public class Contact extends RealmObject implements Person, Comparable<Person> {
     @PrimaryKey
-    private final String mId;
-    private final String mName;
-    private final String mPhoto;
+    private String mId;
+    private String mName;
+    private String mPhoto;
 
     private Friend mRelated;
     private boolean mSynced;
