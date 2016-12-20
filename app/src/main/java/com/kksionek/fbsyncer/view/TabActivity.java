@@ -255,8 +255,10 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                             //TODO: make another dialog/preference remembering if app should remove photo automatically
                             builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
                                 mRealm.executeTransaction(realm -> {
+                                    contact.getRelated().setSynced(false);
                                     contact.setRelated(null);
                                     contact.setManual(false);
+                                    contact.setSynced(false);
                                 });
                                 dialogInterface.dismiss();
                             });
