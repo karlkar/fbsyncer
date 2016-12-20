@@ -1,31 +1,24 @@
 package com.kksionek.fbsyncer.model;
 
 import android.app.Service;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import android.support.annotation.UiThread;
 import android.util.Log;
 
 import com.facebook.AccessToken;
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
 import com.facebook.GraphRequest;
+import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
-import com.facebook.appevents.AppEventsLogger;
-import com.facebook.login.LoginManager;
-import com.facebook.login.LoginResult;
 import com.kksionek.fbsyncer.data.Contact;
 import com.kksionek.fbsyncer.data.Friend;
 import com.kksionek.fbsyncer.view.ISyncListener;
@@ -45,247 +38,210 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 
 public class FBSyncService extends Service {
 
     private static final String TAG = "FBSyncService";
-    private static final int CONTACT_ID_INDEX = 0;
-    private static final int DISPLAY_NAME_PRIMARY_INDEX = 1;
-
-    private static final String[] PROJECTION =
-            {
-                    ContactsContract.RawContacts._ID,
-                    ContactsContract.RawContacts.DISPLAY_NAME_PRIMARY
-            };
 
     private final IBinder mBinder = new MyLocalBinder();
     private ISyncListener mSyncListener = null;
 
-    private AccessToken mAccessToken = null;
-    private CallbackManager mCallbackManager;
-    private final AtomicBoolean mContactsLoaded = new AtomicBoolean(false);
-    private final AtomicBoolean mFbLoaded = new AtomicBoolean(false);
-    private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
+    private final ExecutorService mThreadPool = Executors.newFixedThreadPool(3);
 
     @Override
     public void onCreate() {
         super.onCreate();
-        AppEventsLogger.activateApp(getApplication());
-        mCallbackManager = CallbackManager.Factory.create();
-
-        LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
-            @Override
-            public void onSuccess(LoginResult loginResult) {
-                mAccessToken = loginResult.getAccessToken();
-            }
-
-            @Override
-            public void onCancel() {
-            }
-
-            @Override
-            public void onError(FacebookException error) {
-                Log.d(TAG, "onError: Failed to login to facebook");
-            }
-        });
     }
 
     public void setListener(ISyncListener listener) {
         mSyncListener = listener;
     }
 
-    private void getContacts() {
-        mContactsLoaded.set(false);
-        Realm realm = Realm.getDefaultInstance();
-        RealmResults<Contact> contacts = realm.where(Contact.class)
-                .findAll();
-        Cursor cursor = getContentResolver().query(ContactsContract.RawContacts.CONTENT_URI, PROJECTION, null, null, null);
-        String rawContactId;
-        String displayName;
-        String thumbnailPath;
-
-        realm.beginTransaction();
-        for (Contact contact : contacts)
-            contact.setOld(true);
-        while (cursor.moveToNext()) {
-            rawContactId = cursor.getString(CONTACT_ID_INDEX);
-            displayName = cursor.getString(DISPLAY_NAME_PRIMARY_INDEX);
-            thumbnailPath = getThumbnailOf(rawContactId);
-            Contact newContact = new Contact(rawContactId, displayName, thumbnailPath);
-            Contact preUpdateContact = realm.where(Contact.class)
-                    .equalTo("mId", rawContactId)
-                    .findFirst();
-            if (preUpdateContact != null) {
-                newContact.setRelated(preUpdateContact.getRelated());
-            }
-            realm.insertOrUpdate(newContact);
-        }
-        cursor.close();
-        RealmResults<Contact> oldContacts = contacts.where()
-                .equalTo("mOld", true)
-                .findAll();
-        Log.d(TAG, "getContacts: " + oldContacts.size() + " contacts were deleted from phone.");
-        oldContacts.deleteAllFromRealm();
-        realm.commitTransaction();
-        realm.close();
-        mContactsLoaded.set(true);
-    }
-
-    private String getThumbnailOf(String rawContactId) {
-        String contactId;
-        Cursor cur = getContentResolver()
-                .query(ContactsContract.Data.CONTENT_URI,
-                        new String[] {ContactsContract.Data.CONTACT_ID},
-                        ContactsContract.Data.RAW_CONTACT_ID
-                                + "="
-                                + rawContactId
-                                + " AND "
-                                + ContactsContract.Data.MIMETYPE
-                                + "='"
-                                + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
-                                + "'", null, null);
-        if (cur != null && cur.moveToFirst()) {
-            contactId = cur.getString(0);
-            cur.close();
-            return Uri.withAppendedPath(
-                    ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI,
-                            Long.parseLong(contactId)),
-                    ContactsContract.Contacts.Photo.CONTENT_DIRECTORY)
-                    .toString();
-        } else
-            return null;
-    }
-
-    private void getFbContacts() {
-        mFbLoaded.set(false);
-        Realm realm = Realm.getDefaultInstance();
-        RealmResults<Friend> friends = realm.where(Friend.class)
-                .findAll();
-        realm.beginTransaction();
-        for (Friend friend : friends)
-            friend.setOld(true);
-        realm.commitTransaction();
-        mAccessToken = AccessToken.getCurrentAccessToken();
-        if (mAccessToken == null)
-            return;
-        requestFriends(null);
-        RealmResults<Friend> oldFriends = friends.where()
-                .equalTo("mOld", true)
-                .findAll();
-        Log.d(TAG, "getFbContacts: " + oldFriends.size() + " friends were deleted from Facebook");
-        realm.beginTransaction();
-        oldFriends.deleteAllFromRealm();
-        realm.commitTransaction();
-        realm.close();
-        mFbLoaded.set(true);
-    }
-
+    @UiThread
     public void startSync() {
-        new AsyncTask<Void, Void, Void>() {
+        if (mSyncListener != null) {
+            mSyncListener.onSyncStarted();
+        }
 
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if (mSyncListener != null)
-                    mSyncListener.onSyncStarted();
-            }
-
-            @Override
-            protected Void doInBackground(Void... voids) {
-                getContacts();
-                getFbContacts();
-
-                performSync();
-
-                Log.d(TAG, "doInBackground: DONE");
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Void aVoid) {
-                super.onPostExecute(aVoid);
+        Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> {
+            performSync();
+            return 1;
+        })
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(o -> {
                 if (mSyncListener != null)
                     mSyncListener.onSyncEnded();
-            }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+            });
     }
 
-    public void syncSingle(final String contactId, final String photo) {
-        new AsyncTask<Void, Void, Void>() {
-
-            @Override
-            protected void onPreExecute() {
-                super.onPreExecute();
-                if (mSyncListener != null)
-                    mSyncListener.onSyncStarted();
-            }
-
-            @Override
-            protected Void doInBackground(Void... voids) {
-                setContactPhoto(contactId, photo);
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Void aVoid) {
-                super.onPostExecute(aVoid);
-                if (mSyncListener != null)
-                    mSyncListener.onSyncEnded();
-            }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    @NonNull
+    private Observable<List<Contact>> getContactsRx() {
+        return RxContacts.fetch(this)
+                .subscribeOn(Schedulers.io())
+                .toList();
     }
 
-    private void requestFriends(@Nullable String nextToken) {
-        GraphRequest req = new GraphRequest(mAccessToken, "/me/taggable_friends", null, HttpMethod.GET, response -> {
-//                Log.d(TAG, "onCompleted: response = " + response.toString());
-            if (response.getError() != null)
-                Log.e(TAG, "onCompleted: Couldn't obtain friend data.");
-            else {
+    @NonNull
+    private Observable<List<Contact>> getAndRealmContacts() {
+        return getContactsRx()
+                .doOnNext(contacts -> {
+                    if (Looper.myLooper() == null)
+                        Looper.prepare();
+                    Realm ioRealm = Realm.getDefaultInstance();
+                    ioRealm.beginTransaction();
+
+                    // Prepare Realm database so it knows which contacts were updated
+                    ioRealm.where(Contact.class)
+                            .findAll()
+                            .asObservable()
+                            .subscribeOn(Schedulers.immediate())
+                            .flatMap(allContacts -> Observable.from(allContacts))
+                            .forEach(realmContact -> realmContact.setOld(true));
+
+                    Contact preUpdateContact;
+                    for (Contact newContact : contacts) {
+                        preUpdateContact = ioRealm.where(Contact.class)
+                                .equalTo("mId", newContact.getId())
+                                .findFirst();
+                        if (preUpdateContact != null)
+                            newContact.setRelated(preUpdateContact.getRelated());
+                    }
+
+                    ioRealm.insertOrUpdate(contacts);
+
+                    // Remove friends that doesn't exist anymore
+                    ioRealm.where(Contact.class)
+                            .equalTo("mOld", true)
+                            .findAll()
+                            .asObservable()
+                            .subscribeOn(Schedulers.immediate())
+                            .subscribe(oldContacts -> oldContacts.deleteAllFromRealm());
+
+                    ioRealm.commitTransaction();
+                    ioRealm.close();
+                });
+    }
+
+    @NonNull
+    public Observable<List<Friend>> getFriendsRx() {
+        return Observable.<GraphResponse>create(subscriber -> {
+            AccessToken accessToken = AccessToken.getCurrentAccessToken();
+            if (accessToken == null) {
+                subscriber.onError(new NullPointerException("AccessToken is null"));
+                return;
+            }
+            String nextToken = "";
+            Bundle params;
+            GraphResponse response;
+            while (nextToken != null) {
+                params = null;
+                if (!nextToken.isEmpty()) {
+                    params = new Bundle();
+                    params.putString("after", nextToken);
+                }
+                response = new GraphRequest(accessToken, "/me/taggable_friends",
+                        params, HttpMethod.GET).executeAndWait();
+                if (response.getError() != null) {
+                    subscriber.onError(response.getError().getException());
+                    nextToken = null;
+                } else {
+                    subscriber.onNext(response);
+                    if (response.getJSONObject().isNull("paging")) {
+                        nextToken = null;
+                        subscriber.onCompleted();
+                    } else {
+                        try {
+                            nextToken = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                            subscriber.onError(e);
+                            nextToken = null;
+                        }
+                    }
+                }
+            }
+        })
+            .subscribeOn(Schedulers.io())
+            .flatMap(response -> {
+                List<Friend> list = new ArrayList<>();
                 try {
                     JSONArray friendArray = response.getJSONObject().getJSONArray("data");
-                    Realm realm = Realm.getDefaultInstance();
-                    realm.beginTransaction();
                     for (int i = 0; i < friendArray.length(); ++i) {
-//                            Log.d(TAG, "onCompleted: FRIEND = " + friendArray.get(i).toString());
-                        realm.insertOrUpdate(new Friend(friendArray.getJSONObject(i)));
-                    }
-                    realm.commitTransaction();
-                    realm.close();
-                    if (!response.getJSONObject().isNull("paging")) {
-                        String token = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
-                        requestFriends(token);
+                        list.add(new Friend(friendArray.getJSONObject(i)));
                     }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
-            }
+                return Observable.from(list);
+            }).toList();
+    }
+
+    @NonNull
+    private Observable<List<Friend>> getAndRealmFriends() {
+        return getFriendsRx()
+                .doOnNext(friends -> {
+                    if (Looper.myLooper() == null)
+                        Looper.prepare();
+                    Realm ioRealm = Realm.getDefaultInstance();
+                    ioRealm.beginTransaction();
+
+                    // Prepare Realm database so it knows which friends were updated
+                    ioRealm.where(Friend.class)
+                            .findAll()
+                            .asObservable()
+                            .subscribeOn(Schedulers.immediate())
+                            .flatMap(allContacts -> Observable.from(allContacts))
+                            .forEach(realmContact -> realmContact.setOld(true));
+
+                    for (Friend friend : friends)
+                        ioRealm.insertOrUpdate(friend);
+
+                    ioRealm.where(Friend.class)
+                            .equalTo("mOld", true)
+                            .findAll().deleteAllFromRealm();
+                    ioRealm.commitTransaction();
+                    ioRealm.close();
+                });
+    }
+
+    public void syncSingle(final String contactId, final String photo) {
+        if (mSyncListener != null)
+            mSyncListener.onSyncStarted();
+
+        Observable.fromCallable(() -> {
+            setContactPhoto(contactId, photo);
+            return 1;
+        })
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(integer -> {
+            if (mSyncListener != null)
+                mSyncListener.onSyncEnded();
         });
-        if (nextToken != null) {
-            Bundle parameters = new Bundle();
-            parameters.putString("after", nextToken);
-            req.setParameters(parameters);
-        }
-        req.executeAndWait();
     }
 
     private void performSync() {
         List<Callable<Void>> callables = new ArrayList<>();
         Realm realm = Realm.getDefaultInstance();
         RealmResults<Contact> contacts = realm.where(Contact.class).findAll();
-        RealmResults<Friend> friends = realm.where(Friend.class).findAll();
+//        RealmResults<Friend> friends = realm.where(Friend.class).findAll();
 
         realm.beginTransaction();
 
-        for (Contact contact : contacts)
-            contact.setSynced(false);
-        for (Friend friend : friends)
-            friend.setSynced(false);
+        // All contacts in database are new => they have mSynced set to false
+//        for (Contact contact : contacts)
+//            contact.setSynced(false);
+//        for (Friend friend : friends)
+//            friend.setSynced(false);
 
         for (Contact contact : contacts) {
             RealmResults<Friend> sameNameFriends = realm.where(Friend.class)
