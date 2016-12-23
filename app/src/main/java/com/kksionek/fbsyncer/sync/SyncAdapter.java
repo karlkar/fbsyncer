@@ -1,18 +1,18 @@
-package com.kksionek.fbsyncer.model;
+package com.kksionek.fbsyncer.sync;
 
-import android.app.Service;
+import android.accounts.Account;
+import android.content.AbstractThreadedSyncAdapter;
+import android.content.ContentProviderClient;
 import android.content.ContentValues;
-import android.content.Intent;
+import android.content.Context;
+import android.content.SyncResult;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Binder;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
-import android.support.annotation.UiThread;
 import android.util.Log;
 
 import com.facebook.AccessToken;
@@ -21,7 +21,7 @@ import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.kksionek.fbsyncer.data.Contact;
 import com.kksionek.fbsyncer.data.Friend;
-import com.kksionek.fbsyncer.view.ISyncListener;
+import com.kksionek.fbsyncer.model.RxContacts;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -47,45 +47,32 @@ import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
-public class FBSyncService extends Service {
+public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
-    private static final String TAG = "FBSyncService";
+    private static final String TAG = "SYNCADAPTER";
+    private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
 
-    private final IBinder mBinder = new MyLocalBinder();
-    private ISyncListener mSyncListener = null;
+    public SyncAdapter(Context context, boolean autoInitialize) {
+        super(context, autoInitialize);
+    }
 
-    private final ExecutorService mThreadPool = Executors.newFixedThreadPool(3);
+    public SyncAdapter(Context context, boolean autoInitialize,
+            boolean allowParallelSyncs) {
+        super(context, autoInitialize, allowParallelSyncs);
+    }
 
     @Override
-    public void onCreate() {
-        super.onCreate();
-    }
-
-    public void setListener(ISyncListener listener) {
-        mSyncListener = listener;
-    }
-
-    @UiThread
-    public void startSync() {
-        if (mSyncListener != null) {
-            mSyncListener.onSyncStarted();
-        }
-
-        Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> {
-            performSync();
-            return 1;
-        })
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(o -> {
-                if (mSyncListener != null)
-                    mSyncListener.onSyncEnded();
-            });
+    public void onPerformSync(Account account, Bundle bundle, String s,
+            ContentProviderClient contentProviderClient, SyncResult syncResult) {
+        Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(o -> performSync());
     }
 
     @NonNull
     private Observable<List<Contact>> getContactsRx() {
-        return RxContacts.fetch(this)
+        return RxContacts.fetch(getContext())
                 .subscribeOn(Schedulers.io())
                 .toList();
     }
@@ -170,19 +157,19 @@ public class FBSyncService extends Service {
                 }
             }
         })
-            .subscribeOn(Schedulers.io())
-            .flatMap(response -> {
-                List<Friend> list = new ArrayList<>();
-                try {
-                    JSONArray friendArray = response.getJSONObject().getJSONArray("data");
-                    for (int i = 0; i < friendArray.length(); ++i) {
-                        list.add(new Friend(friendArray.getJSONObject(i)));
+                .subscribeOn(Schedulers.io())
+                .flatMap(response -> {
+                    List<Friend> list = new ArrayList<>();
+                    try {
+                        JSONArray friendArray = response.getJSONObject().getJSONArray("data");
+                        for (int i = 0; i < friendArray.length(); ++i) {
+                            list.add(new Friend(friendArray.getJSONObject(i)));
+                        }
+                    } catch (JSONException e) {
+                        e.printStackTrace();
                     }
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-                return Observable.from(list);
-            }).toList();
+                    return Observable.from(list);
+                }).toList();
     }
 
     @NonNull
@@ -211,22 +198,6 @@ public class FBSyncService extends Service {
                     ioRealm.commitTransaction();
                     ioRealm.close();
                 });
-    }
-
-    public void syncSingle(final String contactId, final String photo) {
-        if (mSyncListener != null)
-            mSyncListener.onSyncStarted();
-
-        Observable.fromCallable(() -> {
-            setContactPhoto(contactId, photo);
-            return 1;
-        })
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(integer -> {
-            if (mSyncListener != null)
-                mSyncListener.onSyncEnded();
-        });
     }
 
     private void performSync() {
@@ -301,18 +272,18 @@ public class FBSyncService extends Service {
 
         int photoRow = -1;
         String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + friendId + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
-        Cursor cursor = getContentResolver().query(ContactsContract.Data.CONTENT_URI, new String[]{ContactsContract.Contacts.Data._ID}, where, null, null);
+        Cursor cursor = getContext().getContentResolver().query(ContactsContract.Data.CONTENT_URI, new String[]{ContactsContract.Contacts.Data._ID}, where, null, null);
         if (cursor.moveToFirst())
             photoRow = cursor.getInt(0);
         cursor.close();
 
         if (photoRow >= 0) {
-            getContentResolver().update(
+            getContext().getContentResolver().update(
                     ContactsContract.Data.CONTENT_URI,
                     values,
                     ContactsContract.Data._ID + " = " + photoRow, null);
         } else {
-            getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
+            getContext().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
         }
         try {
             streamy.close();
@@ -376,28 +347,5 @@ public class FBSyncService extends Service {
             }
         }
         return photo;
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        mSyncListener = null;
-        return super.onUnbind(intent);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mThreadPool.shutdownNow();
-    }
-
-    public class MyLocalBinder extends Binder {
-        public FBSyncService getService() {
-            return FBSyncService.this;
-        }
     }
 }

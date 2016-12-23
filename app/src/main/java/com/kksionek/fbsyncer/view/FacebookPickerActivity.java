@@ -60,7 +60,6 @@ public class FacebookPickerActivity extends AppCompatActivity {
                 builder.setTitle(R.string.alert_create_bond_title);
                 builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));
                 builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {
-                    builder.create().show();
                     Intent intent = new Intent();
                     intent.putExtra(EXTRA_ID, mContactId);
                     intent.putExtra(EXTRA_RESULT_ID, friend.getId());

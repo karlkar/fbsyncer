@@ -1,13 +1,12 @@
 package com.kksionek.fbsyncer.view;
 
 import android.Manifest;
-import android.content.ComponentName;
+import android.accounts.Account;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.IBinder;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.PagerAdapter;
@@ -29,9 +28,9 @@ import android.widget.Toast;
 import com.facebook.AccessToken;
 import com.kksionek.fbsyncer.data.Contact;
 import com.kksionek.fbsyncer.model.ContactsAdapter;
-import com.kksionek.fbsyncer.model.FBSyncService;
 import com.kksionek.fbsyncer.data.Friend;
 import com.kksionek.fbsyncer.R;
+import com.kksionek.fbsyncer.sync.AccountUtils;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -41,23 +40,8 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
 
     private static final int REQUEST_FACEBOOK_PICKER = 4445;
 
-    private FBSyncService mService;
-    private Realm mRealm;
+    private Realm mRealmUi;
     private MenuItemSyncCtrl mMenuItemSyncCtrl = null;
-
-    private final ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            FBSyncService.MyLocalBinder binder = (FBSyncService.MyLocalBinder) iBinder;
-            mService = binder.getService();
-            mService.setListener(TabActivity.this);
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            mService = null;
-        }
-    };
     private ViewPager mPager;
 
     @Override
@@ -74,7 +58,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
         }
         setContentView(R.layout.activity_tab);
 
-        mRealm = Realm.getDefaultInstance();
+        mRealmUi = Realm.getDefaultInstance();
 
         ViewPagerAdapter adapter = new ViewPagerAdapter();
         mPager = (ViewPager) findViewById(R.id.pager);
@@ -114,8 +98,8 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_sync) {
-            if (mService != null)
-                mService.startSync();
+            Account account = new Account(AccountUtils.ACCOUNT_NAME, AccountUtils.ACCOUNT_TYPE);
+            ContentResolver.requestSync(account, AccountUtils.ACCOUNT_AUTHORITY, new Bundle());
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -124,20 +108,12 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     @Override
     protected void onStart() {
         super.onStart();
-        if (mService == null) {
-            Intent intent = new Intent(this, FBSyncService.class);
-            bindService(intent, mConnection, BIND_AUTO_CREATE);
-        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mService != null) {
-            unbindService(mConnection);
-            mService = null;
-        }
-        mRealm.close();
+        mRealmUi.close();
     }
 
     @Override
@@ -145,25 +121,24 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
         if (requestCode == REQUEST_FACEBOOK_PICKER) {
             if (resultCode == RESULT_OK) {
                 String contactId = data.getStringExtra(FacebookPickerActivity.EXTRA_ID);
-                Contact contact = mRealm.where(Contact.class)
+                Contact contact = mRealmUi.where(Contact.class)
                         .equalTo("mId", contactId)
                         .findFirst();
                 String friendId = data.getStringExtra(FacebookPickerActivity.EXTRA_RESULT_ID);
-                Friend friend = mRealm.where(Friend.class)
+                Friend friend = mRealmUi.where(Friend.class)
                         .equalTo("mGeneratedId", friendId)
                         .findFirst();
-                RealmResults<Friend> sameNameFriends = mRealm.where(Friend.class)
+                RealmResults<Friend> sameNameFriends = mRealmUi.where(Friend.class)
                         .equalTo("mName", friend.getName())
                         .findAll();
 
-                mRealm.executeTransaction(realm -> {
+                mRealmUi.executeTransaction(realm -> {
                     contact.setRelated(friend);
                     contact.setSynced(true);
                     contact.getRelated().setSynced(true);
                     contact.setManual(true);
                 });
-                if (mService != null)
-                    mService.syncSingle(contact.getId(), contact.getRelated().getPhoto());
+                // TODO: Sync single
 
                 if (sameNameFriends.size() > 1) {
                     AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -224,7 +199,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
 
             switch (position) {
                 case 0: {
-                    RealmResults<Contact> notSyncedContacts = mRealm.where(Contact.class)
+                    RealmResults<Contact> notSyncedContacts = mRealmUi.where(Contact.class)
                             .equalTo("mSynced", false)
                             .findAllSorted("mName", Sort.ASCENDING);
 
@@ -241,7 +216,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                     break;
                 }
                 case 1: {
-                    RealmResults<Contact> manualContacts = mRealm.where(Contact.class)
+                    RealmResults<Contact> manualContacts = mRealmUi.where(Contact.class)
                             .equalTo("mManual", true)
                             .findAllSorted("mName", Sort.ASCENDING);
 
@@ -254,7 +229,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                             builder.setMessage(R.string.alert_release_bond_message);
                             //TODO: make another dialog/preference remembering if app should remove photo automatically
                             builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-                                mRealm.executeTransaction(realm -> {
+                                mRealmUi.executeTransaction(realm -> {
                                     contact.getRelated().setSynced(false);
                                     contact.setRelated(null);
                                     contact.setManual(false);

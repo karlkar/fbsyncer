@@ -1,12 +1,12 @@
 package com.kksionek.fbsyncer.view;
 
 import android.Manifest;
-import android.content.ComponentName;
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.content.ContentResolver;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -23,8 +23,8 @@ import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
-import com.kksionek.fbsyncer.model.FBSyncService;
 import com.kksionek.fbsyncer.R;
+import com.kksionek.fbsyncer.sync.AccountUtils;
 
 import java.util.Arrays;
 
@@ -39,23 +39,7 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
     private Button mQuestionBtn;
     private CallbackManager mCallbackManager;
 
-    private Realm mRealm;
-
-    private FBSyncService mService;
-
-    private final ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            FBSyncService.MyLocalBinder binder = (FBSyncService.MyLocalBinder) iBinder;
-            mService = binder.getService();
-            mService.setListener(MainActivity.this);
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            mService = null;
-        }
-    };
+    private Realm mRealmUi;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,26 +80,18 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                 showSyncScreen();
         }
 
-        mRealm = Realm.getDefaultInstance();
+        mRealmUi = Realm.getDefaultInstance();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (mService == null) {
-            Intent intent = new Intent(this, FBSyncService.class);
-            bindService(intent, mConnection, BIND_AUTO_CREATE);
-        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mService != null) {
-            unbindService(mConnection);
-            mService = null;
-        }
-        mRealm.close();
+        mRealmUi.close();
     }
 
     private void showPermissionRequestScreen() {
@@ -144,8 +120,18 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
         mTextView.setText(R.string.activity_main_prerequisites_fulfilled_message);
         mQuestionBtn.setText(R.string.activity_main_button_sync);
         mQuestionBtn.setOnClickListener(v -> {
-            if (mService != null)
-                mService.startSync();
+            mQuestionBtn.setEnabled(false);
+            AccountManager systemService = (AccountManager) getSystemService(ACCOUNT_SERVICE);
+            Account account = new Account(AccountUtils.ACCOUNT_NAME, AccountUtils.ACCOUNT_TYPE);
+            if (systemService.addAccountExplicitly(
+                    account, null, null)) {
+                ContentResolver.setIsSyncable(account, "com.kksionek.fbsyncer", 1);
+                ContentResolver.setSyncAutomatically(account, "com.kksionek.fbsyncer", true);
+                ContentResolver.addPeriodicSync(account, "com.kksionek.fbsyncer", new Bundle(),
+                        24 * 60 * 60);
+            }
+            ContentResolver.requestSync(account, AccountUtils.ACCOUNT_AUTHORITY, new Bundle());
+            finish();
         });
     }
 
