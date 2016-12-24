@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -64,10 +65,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     @Override
     public void onPerformSync(Account account, Bundle bundle, String s,
             ContentProviderClient contentProviderClient, SyncResult syncResult) {
+        Log.d(TAG, "onPerformSync: START");
         Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(Schedulers.immediate())
+                .toBlocking()
                 .subscribe(o -> performSync());
+        Log.d(TAG, "onPerformSync: END");
     }
 
     @NonNull

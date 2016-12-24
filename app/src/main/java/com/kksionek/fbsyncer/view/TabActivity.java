@@ -5,6 +5,7 @@ import android.accounts.Account;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.support.design.widget.Snackbar;
@@ -17,6 +18,7 @@ import android.os.Bundle;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -36,13 +38,28 @@ import io.realm.Realm;
 import io.realm.RealmResults;
 import io.realm.Sort;
 
-public class TabActivity extends AppCompatActivity implements ISyncListener {
+public class TabActivity extends AppCompatActivity {
 
     private static final int REQUEST_FACEBOOK_PICKER = 4445;
+    private static final String TAG = "TABACTIVITY";
 
     private Realm mRealmUi;
     private MenuItemSyncCtrl mMenuItemSyncCtrl = null;
     private ViewPager mPager;
+    private SyncStatusObserver mSyncStatusObserver = which -> runOnUiThread(() -> {
+        Account account = AccountUtils.getAccount();
+        boolean syncActive = ContentResolver.isSyncActive(
+                account, AccountUtils.CONTENT_AUTHORITY);
+        boolean syncPending = ContentResolver.isSyncPending(
+                account, AccountUtils.CONTENT_AUTHORITY);
+
+        Log.d(TAG, "Event received: " + (syncActive || syncPending));
+        if (syncActive || syncPending)
+            mMenuItemSyncCtrl.startAnimation();
+        else
+            mMenuItemSyncCtrl.endAnimation();
+    });
+    private Object mSyncObserverHandle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,8 +115,7 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_sync) {
-            Account account = new Account(AccountUtils.ACCOUNT_NAME, AccountUtils.ACCOUNT_TYPE);
-            ContentResolver.requestSync(account, AccountUtils.ACCOUNT_AUTHORITY, new Bundle());
+            ContentResolver.requestSync(AccountUtils.getAccount(), AccountUtils.CONTENT_AUTHORITY, new Bundle());
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -108,6 +124,19 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
     @Override
     protected void onStart() {
         super.onStart();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        int mask = ContentResolver.SYNC_OBSERVER_TYPE_ACTIVE | ContentResolver.SYNC_OBSERVER_TYPE_PENDING;
+        mSyncObserverHandle = ContentResolver.addStatusChangeListener(mask, mSyncStatusObserver);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        ContentResolver.removeStatusChangeListener(mSyncObserverHandle);
     }
 
     @Override
@@ -155,20 +184,6 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    @Override
-    public void onSyncStarted() {
-        if (mMenuItemSyncCtrl != null)
-            mMenuItemSyncCtrl.startAnimation();
-        Snackbar.make(mPager, R.string.activity_tab_sync_started, Snackbar.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onSyncEnded() {
-        if (mMenuItemSyncCtrl != null)
-            mMenuItemSyncCtrl.endAnimation();
-        Snackbar.make(mPager, R.string.activity_tab_sync_ended, Snackbar.LENGTH_LONG).show();
-    }
-
     private class ViewPagerAdapter extends PagerAdapter {
 
         @Override
@@ -195,7 +210,6 @@ public class TabActivity extends AppCompatActivity implements ISyncListener {
                     new DividerItemDecoration(
                             TabActivity.this,
                             DividerItemDecoration.VERTICAL));
-//            mTextView.setText("Not all contacts were synced. Here's the list of those");
 
             switch (position) {
                 case 0: {

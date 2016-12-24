@@ -30,7 +30,7 @@ import java.util.Arrays;
 
 import io.realm.Realm;
 
-public class MainActivity extends AppCompatActivity implements ISyncListener {
+public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS_CONTACTS = 4444;
 
@@ -125,12 +125,14 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
             Account account = new Account(AccountUtils.ACCOUNT_NAME, AccountUtils.ACCOUNT_TYPE);
             if (systemService.addAccountExplicitly(
                     account, null, null)) {
-                ContentResolver.setIsSyncable(account, "com.kksionek.fbsyncer", 1);
-                ContentResolver.setSyncAutomatically(account, "com.kksionek.fbsyncer", true);
-                ContentResolver.addPeriodicSync(account, "com.kksionek.fbsyncer", new Bundle(),
+                ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
+                ContentResolver.setSyncAutomatically(account, AccountUtils.CONTENT_AUTHORITY, true);
+                ContentResolver.addPeriodicSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle(),
                         24 * 60 * 60);
             }
-            ContentResolver.requestSync(account, AccountUtils.ACCOUNT_AUTHORITY, new Bundle());
+            ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
+            Intent tabIntent = new Intent(this, TabActivity.class);
+            startActivity(tabIntent);
             finish();
         });
     }
@@ -154,24 +156,5 @@ public class MainActivity extends AppCompatActivity implements ISyncListener {
                         Toast.LENGTH_LONG).show();
         } else
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    }
-
-    @Override
-    public void onSyncStarted() {
-        mQuestionBtn.setEnabled(false);
-        Snackbar.make(mTextView, R.string.activity_main_sync_started, Snackbar.LENGTH_LONG).show();
-    }
-
-    @Override
-    public void onSyncEnded() {
-        mQuestionBtn.setEnabled(true);
-        Snackbar.make(mTextView, R.string.activity_main_sync_ended, Snackbar.LENGTH_LONG).show();
-        showNotSyncedScreen();
-    }
-
-    private void showNotSyncedScreen() {
-        Intent intent = new Intent(this, TabActivity.class);
-        startActivity(intent);
-        finish();
     }
 }

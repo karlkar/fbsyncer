@@ -15,6 +15,7 @@ public class MenuItemSyncCtrl {
     private final MenuItem mMenuItem;
     private Animation mRotationAnimation = null;
     private ImageView mRefreshImage = null;
+    private boolean mAnimating = false;
 
     public MenuItemSyncCtrl(@NonNull Context ctx, @NonNull MenuItem menuItem) {
         mCtx = ctx;
@@ -22,6 +23,9 @@ public class MenuItemSyncCtrl {
     }
 
     public void startAnimation() {
+        if (mAnimating)
+            return;
+        mAnimating = true;
         if (mRefreshImage == null) {
             LayoutInflater inflater = (LayoutInflater) mCtx.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             mRefreshImage = (ImageView) inflater.inflate(R.layout.refresh_action_view, null);
@@ -36,6 +40,9 @@ public class MenuItemSyncCtrl {
     }
 
     public void endAnimation() {
+        if (!mAnimating)
+            return;
+        mAnimating = false;
         if (mMenuItem.getActionView() != null) {
             mMenuItem.getActionView().clearAnimation();
             mMenuItem.setActionView(null);
