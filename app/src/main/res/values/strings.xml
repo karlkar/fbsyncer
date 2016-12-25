@@ -11,6 +11,8 @@
     <string name="alert_create_bond_message">Do you really want to connect "%1$s" with "%2$s"?</string>
     <string name="alert_release_bond_title">Warning</string>
     <string name="alert_release_bond_message">Do you want to remove this bond?\nYou will have to remove the assigned photo manually.</string>
+    <string name="alert_cancel_auto_sync_title">Cancel auto sync?</string>
+    <string name="alert_cancel_auto_sync_message">Do you really want to cancel automatic synchronization for this contact?</string>
     <string name="activity_facebookpicker_text">Pick facebook friend who will be connected to "%1$s" from your contacts</string>
     <string name="activity_tab_sync_started">Sync started</string>
     <string name="activity_tab_sync_ended">Sync ended</string>
@@ -27,4 +29,5 @@
     <string name="activity_main_grant_contacts_access_message">In order to sync your contact images I need an access to your contacts. I will have to read them and modify if I will find a proper image. Please press the button to grant me access.</string>
     <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
     <string name="menu_sync">Sync now</string>
+    <string name="activity_tab_tab_auto">Auto</string>
 </resources>

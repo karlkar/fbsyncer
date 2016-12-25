@@ -3,44 +3,33 @@ package com.kksionek.fbsyncer.view;
 import android.Manifest;
 import android.accounts.Account;
 import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
-import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.DividerItemDecoration;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Toast;
 
 import com.facebook.AccessToken;
 import com.kksionek.fbsyncer.data.Contact;
-import com.kksionek.fbsyncer.model.ContactsAdapter;
 import com.kksionek.fbsyncer.data.Friend;
 import com.kksionek.fbsyncer.R;
 import com.kksionek.fbsyncer.sync.AccountUtils;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
-import io.realm.Sort;
 
 public class TabActivity extends AppCompatActivity {
 
-    private static final int REQUEST_FACEBOOK_PICKER = 4445;
+    public static final int REQUEST_FACEBOOK_PICKER = 4445;
     private static final String TAG = "TABACTIVITY";
 
     private Realm mRealmUi;
@@ -77,7 +66,7 @@ public class TabActivity extends AppCompatActivity {
 
         mRealmUi = Realm.getDefaultInstance();
 
-        ViewPagerAdapter adapter = new ViewPagerAdapter();
+        ViewPagerAdapter adapter = new ViewPagerAdapter(this, mRealmUi);
         mPager = (ViewPager) findViewById(R.id.pager);
         mPager.setAdapter(adapter);
 
@@ -184,99 +173,4 @@ public class TabActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    private class ViewPagerAdapter extends PagerAdapter {
-
-        @Override
-        public int getCount() {
-            return 2;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object object) {
-            return view == object;
-        }
-
-        @Override
-        public Object instantiateItem(ViewGroup container, int position) {
-            Context ctx = container.getContext();
-            View view = LayoutInflater.from(ctx)
-                    .inflate(R.layout.tab_not_synced, container, false);
-            container.addView(view);
-
-            RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.recycler_view);
-            RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(ctx);
-            recyclerView.setLayoutManager(layoutManager);
-            recyclerView.addItemDecoration(
-                    new DividerItemDecoration(
-                            TabActivity.this,
-                            DividerItemDecoration.VERTICAL));
-
-            switch (position) {
-                case 0: {
-                    RealmResults<Contact> notSyncedContacts = mRealmUi.where(Contact.class)
-                            .equalTo("mSynced", false)
-                            .findAllSorted("mName", Sort.ASCENDING);
-
-                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<>(TabActivity.this, notSyncedContacts, true);
-                    contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                        @Override
-                        public void onClick(View view, Contact contact) {
-                            Intent facebookPicketIntent = new Intent(TabActivity.this, FacebookPickerActivity.class);
-                            facebookPicketIntent.putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId());
-                            startActivityForResult(facebookPicketIntent, REQUEST_FACEBOOK_PICKER);
-                        }
-                    });
-                    recyclerView.setAdapter(contactsAdapter);
-                    break;
-                }
-                case 1: {
-                    RealmResults<Contact> manualContacts = mRealmUi.where(Contact.class)
-                            .equalTo("mManual", true)
-                            .findAllSorted("mName", Sort.ASCENDING);
-
-                    ContactsAdapter<Contact> contactsAdapter = new ContactsAdapter<>(TabActivity.this, manualContacts, true);
-                    contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                        @Override
-                        public void onClick(View view, Contact contact) {
-                            AlertDialog.Builder builder = new AlertDialog.Builder(TabActivity.this);
-                            builder.setTitle(R.string.alert_release_bond_title);
-                            builder.setMessage(R.string.alert_release_bond_message);
-                            //TODO: make another dialog/preference remembering if app should remove photo automatically
-                            builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-                                mRealmUi.executeTransaction(realm -> {
-                                    contact.getRelated().setSynced(false);
-                                    contact.setRelated(null);
-                                    contact.setManual(false);
-                                    contact.setSynced(false);
-                                });
-                                dialogInterface.dismiss();
-                            });
-                            builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
-                            builder.create().show();
-                        }
-                    });
-                    recyclerView.setAdapter(contactsAdapter);
-                    break;
-                }
-            }
-            return view;
-        }
-
-        @Override
-        public void destroyItem(ViewGroup container, int position, Object object) {
-            container.removeView((View)object);
-        }
-
-        @Override
-        public CharSequence getPageTitle(int position) {
-            switch (position) {
-                case 0:
-                    return getString(R.string.activity_tab_tab_not_synced);
-                case 1:
-                    return getString(R.string.activity_tab_tab_manual);
-                default:
-                    return super.getPageTitle(position);
-            }
-        }
-    }
 }

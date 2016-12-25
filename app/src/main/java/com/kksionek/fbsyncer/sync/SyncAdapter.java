@@ -103,8 +103,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                         preUpdateContact = ioRealm.where(Contact.class)
                                 .equalTo("mId", newContact.getId())
                                 .findFirst();
-                        if (preUpdateContact != null)
+                        if (preUpdateContact != null) {
                             newContact.setRelated(preUpdateContact.getRelated());
+                            newContact.setManual(preUpdateContact.isManual());
+                        }
                     }
 
                     ioRealm.insertOrUpdate(contacts);
@@ -219,33 +221,24 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 //            friend.setSynced(false);
 
         for (Contact contact : contacts) {
-            RealmResults<Friend> sameNameFriends = realm.where(Friend.class)
-                    .equalTo("mName", contact.getName())
-                    .findAll();
-            if (sameNameFriends.size() == 1)
-                contact.setRelated(sameNameFriends.first());
-            final Contact copiedContact = realm.copyFromRealm(contact);
-            if (sameNameFriends.size() == 1) {
-                callables.add(() -> {
-                    setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
-                    return null;
-                });
-                contact.setSynced(true);
-                contact.setManual(false);
-                contact.getRelated().setSynced(true);
-            } else if (contact.getRelated() != null) {
-                Log.d(TAG, "performSync: [" + contact.getName() + "] - syncing using manual settings.");
-                callables.add(() -> {
-                    setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
-                    return null;
-                });
-                contact.setSynced(true);
-                contact.setManual(true);
-                contact.getRelated().setSynced(true);
-            } else if (sameNameFriends.size() > 1) {
-                Log.d(TAG, "performSync: [" + contact.getName() + "] Friend exists multiple times and connot be synced automatically.");
-            } else
-                contact.setSynced(false);
+            if (contact.isManual()) {
+                if (contact.getRelated() != null)
+                    syncToRelated(callables, realm, contact, true);
+            } else {
+                RealmResults<Friend> sameNameFriends = realm.where(Friend.class)
+                        .equalTo("mName", contact.getName())
+                        .findAll();
+                if (sameNameFriends.size() == 1) {
+                    contact.setRelated(sameNameFriends.first());
+                    syncToRelated(callables, realm, contact, false);
+                } else {
+                    if (sameNameFriends.isEmpty())
+                        Log.d(TAG, "performSync: [" + contact.getName() + "] Friend doesn't exist on social network.");
+                    else
+                        Log.d(TAG, "performSync: [" + contact.getName() + "] Friend exists multiple times and connot be synced automatically.");
+                    contact.setSynced(false);
+                }
+            }
         }
         realm.commitTransaction();
         realm.close();
@@ -255,6 +248,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    private void syncToRelated(List<Callable<Void>> callables, Realm realm, Contact contact, boolean manual) {
+        if (manual)
+            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
+        else
+            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
+        final Contact copiedContact = realm.copyFromRealm(contact);
+        callables.add(() -> {
+            setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
+            return null;
+        });
+        contact.setSynced(true);
+        contact.setManual(manual);
+        contact.getRelated().setSynced(true);
     }
 
     private void setContactPhoto(@NonNull final String friendId, @NonNull final String photo) {

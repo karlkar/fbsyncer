@@ -86,4 +86,8 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
     public void setName(String name) {
         mName = name;
     }
+
+    public boolean isManual() {
+        return mManual;
+    }
 }
