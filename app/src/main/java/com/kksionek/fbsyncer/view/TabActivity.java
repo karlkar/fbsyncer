@@ -2,11 +2,14 @@ package com.kksionek.fbsyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.PowerManager;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
@@ -43,25 +46,33 @@ public class TabActivity extends AppCompatActivity {
                 account, AccountUtils.CONTENT_AUTHORITY);
 
         Log.d(TAG, "Event received: " + (syncActive || syncPending));
-        if (syncActive || syncPending)
-            mMenuItemSyncCtrl.startAnimation();
-        else
-            mMenuItemSyncCtrl.endAnimation();
+        if (mMenuItemSyncCtrl != null) {
+            if (syncActive || syncPending)
+                mMenuItemSyncCtrl.startAnimation();
+            else
+                mMenuItemSyncCtrl.endAnimation();
+        }
     });
     private Object mSyncObserverHandle;
 
+    @SuppressLint("NewApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        String packageName = getPackageName();
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
         if (AccessToken.getCurrentAccessToken() == null ||
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
-                        || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED))) {
+                    (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
+                        || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)
+                    || !pm.isIgnoringBatteryOptimizations(packageName))) {
             Intent intent = new Intent(this, MainActivity.class);
             startActivity(intent);
             finish();
         }
+
         setContentView(R.layout.activity_tab);
 
         mRealmUi = Realm.getDefaultInstance();

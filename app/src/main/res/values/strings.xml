@@ -30,4 +30,7 @@
     <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
     <string name="menu_sync">Sync now</string>
     <string name="activity_tab_tab_auto">Auto</string>
+    <string name="activity_main_whitelist_not_granted_toast">You forbid to use battery optimization. It doesn\'t allow me to work properly.</string>
+    <string name="activity_main_whitelist_message">There\'s one more thing... Application may be put on the battery optimization list. When it happens your contacts\' photos won\'t be synchronized. However you can add this application to whitelist, preventing optimization.</string>
+    <string name="activity_main_whitelist_btn">Add to optimization whitelist</string>
 </resources>

@@ -4,11 +4,14 @@ import android.Manifest;
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -33,6 +36,7 @@ import io.realm.Realm;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_PERMISSIONS_CONTACTS = 4444;
+    private static final int REQUEST_WHITELIST_PERMISSION = 1616;
 
     private static final String TAG = "MainActivity";
     private TextView mTextView;
@@ -54,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
         LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
-                showSyncScreen();
+                showWhitelistScreen();
             }
 
             @Override
@@ -68,19 +72,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
-                || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)) {
-            showPermissionRequestScreen();
-        } else {
-            AccessToken accessToken = AccessToken.getCurrentAccessToken();
-            if (accessToken == null)
-                showFbLoginScreen();
-            else
-                showSyncScreen();
-        }
-
         mRealmUi = Realm.getDefaultInstance();
+
+        showPermissionRequestScreen();
     }
 
     @Override
@@ -95,25 +89,49 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showPermissionRequestScreen() {
-        mTextView.setText(R.string.activity_main_grant_contacts_access_message);
-        mQuestionBtn.setText(R.string.activity_main_button_grant_contacts_access);
-        mQuestionBtn.setOnClickListener(v ->
-                ActivityCompat.requestPermissions(
-                        MainActivity.this,
-                        new String[]{
-                                Manifest.permission.READ_CONTACTS,
-                                Manifest.permission.WRITE_CONTACTS},
-                        REQUEST_PERMISSIONS_CONTACTS)
-        );
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
+                        || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)) {
+            mTextView.setText(R.string.activity_main_grant_contacts_access_message);
+            mQuestionBtn.setText(R.string.activity_main_button_grant_contacts_access);
+            mQuestionBtn.setOnClickListener(v ->
+                    ActivityCompat.requestPermissions(
+                            MainActivity.this,
+                            new String[]{
+                                    Manifest.permission.READ_CONTACTS,
+                                    Manifest.permission.WRITE_CONTACTS},
+                            REQUEST_PERMISSIONS_CONTACTS)
+            );
+        } else
+            showFbLoginScreen();
     }
 
     private void showFbLoginScreen() {
-        mTextView.setText(R.string.activity_main_facebook_permission_request_message);
-        mQuestionBtn.setText(R.string.activity_main_button_login_facebook);
-        mQuestionBtn.setOnClickListener(v ->
-                LoginManager.getInstance().logInWithReadPermissions(
-                        MainActivity.this,
-                        Arrays.asList("user_friends")));
+        if (AccessToken.getCurrentAccessToken() == null) {
+            mTextView.setText(R.string.activity_main_facebook_permission_request_message);
+            mQuestionBtn.setText(R.string.activity_main_button_login_facebook);
+            mQuestionBtn.setOnClickListener(v ->
+                    LoginManager.getInstance().logInWithReadPermissions(
+                            MainActivity.this,
+                            Arrays.asList("user_friends")));
+        } else
+            showWhitelistScreen();
+    }
+
+    private void showWhitelistScreen() {
+        String packageName = getPackageName();
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !pm.isIgnoringBatteryOptimizations(packageName)) {
+            mTextView.setText(R.string.activity_main_whitelist_message);
+            mQuestionBtn.setText(R.string.activity_main_whitelist_btn);
+            mQuestionBtn.setOnClickListener(v -> {
+                Intent intent = new Intent();
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+                startActivityForResult(intent, REQUEST_WHITELIST_PERMISSION);
+            });
+        } else
+            showSyncScreen();
     }
 
     private void showSyncScreen() {
@@ -122,9 +140,8 @@ public class MainActivity extends AppCompatActivity {
         mQuestionBtn.setOnClickListener(v -> {
             mQuestionBtn.setEnabled(false);
             AccountManager systemService = (AccountManager) getSystemService(ACCOUNT_SERVICE);
-            Account account = new Account(AccountUtils.ACCOUNT_NAME, AccountUtils.ACCOUNT_TYPE);
-            if (systemService.addAccountExplicitly(
-                    account, null, null)) {
+            Account account = AccountUtils.getAccount();
+            if (systemService.addAccountExplicitly(account, null, null)) {
                 ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
                 ContentResolver.setSyncAutomatically(account, AccountUtils.CONTENT_AUTHORITY, true);
                 ContentResolver.addPeriodicSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle(),
@@ -139,6 +156,14 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_WHITELIST_PERMISSION) {
+            if (resultCode == RESULT_OK)
+                showSyncScreen();
+            else
+                Toast.makeText(this, R.string.activity_main_whitelist_not_granted_toast, Toast.LENGTH_LONG).show();
+            return;
+        }
+
         super.onActivityResult(requestCode, resultCode, data);
         mCallbackManager.onActivityResult(requestCode, resultCode, data);
     }
