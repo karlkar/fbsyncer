@@ -67,6 +67,7 @@ public class Contact extends RealmObject implements Person, Comparable<Person> {
         mSynced = synced;
     }
 
+    @NonNull
     public String getName() {
         return mName;
     }

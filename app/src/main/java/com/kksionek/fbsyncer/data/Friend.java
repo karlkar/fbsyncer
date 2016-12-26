@@ -60,6 +60,7 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
         return o instanceof Person && mName.equals(((Person) o).getName());
     }
 
+    @NonNull
     public String getName() {
         return mName;
     }

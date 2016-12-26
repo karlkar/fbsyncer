@@ -14,13 +14,9 @@
     <string name="alert_cancel_auto_sync_title">Cancel auto sync?</string>
     <string name="alert_cancel_auto_sync_message">Do you really want to cancel automatic synchronization for this contact?</string>
     <string name="activity_facebookpicker_text">Pick facebook friend who will be connected to "%1$s" from your contacts</string>
-    <string name="activity_tab_sync_started">Sync started</string>
-    <string name="activity_tab_sync_ended">Sync ended</string>
     <string name="activity_tab_tab_not_synced">Not synced</string>
     <string name="activity_tab_tab_manual">Manual</string>
     <string name="activity_main_permission_rejected_message">You didn\'t grant me full access to your contacts. I cannot sync them.</string>
-    <string name="activity_main_sync_started">Sync started</string>
-    <string name="activity_main_sync_ended">Sync ended</string>
     <string name="activity_main_button_sync">Sync</string>
     <string name="activity_main_prerequisites_fulfilled_message">All prerequirements are fulfilled - I have access to your contacts and you\'re logged in to Facebook account. We can start the process now!</string>
     <string name="activity_main_button_login_facebook">Login to facebook</string>
@@ -31,6 +27,6 @@
     <string name="menu_sync">Sync now</string>
     <string name="activity_tab_tab_auto">Auto</string>
     <string name="activity_main_whitelist_not_granted_toast">You forbid to use battery optimization. It doesn\'t allow me to work properly.</string>
-    <string name="activity_main_whitelist_message">There\'s one more thing... Application may be put on the battery optimization list. When it happens your contacts\' photos won\'t be synchronized. However you can add this application to whitelist, preventing optimization.</string>
+    <string name="activity_main_whitelist_message">There\'s one more thing… Application may be put on the battery optimization list. When it happens your contacts\' photos won\'t be synchronized. However you can add this application to whitelist, preventing optimization.</string>
     <string name="activity_main_whitelist_btn">Add to optimization whitelist</string>
 </resources>

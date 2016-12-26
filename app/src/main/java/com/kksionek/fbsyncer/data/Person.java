@@ -1,7 +1,9 @@
 package com.kksionek.fbsyncer.data;
 
+import android.support.annotation.NonNull;
+
 public interface Person {
     String getId();
-    String getName();
+    @NonNull String getName();
     String getPhoto();
 }

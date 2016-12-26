@@ -4,7 +4,6 @@ import android.content.Context;
 import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import com.kksionek.fbsyncer.data.Contact;
 
@@ -46,7 +45,7 @@ public class RxContacts {
 
                     subscriber.onNext(new Contact(id, displayName, thumbnailPath));
                 }
-
+                cursor.close();
                 subscriber.onCompleted();
             }
         }).onBackpressureBuffer();
