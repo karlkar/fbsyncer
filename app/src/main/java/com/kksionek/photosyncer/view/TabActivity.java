@@ -2,14 +2,11 @@ package com.kksionek.photosyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
-import android.annotation.SuppressLint;
 import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.PowerManager;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
@@ -55,19 +52,14 @@ public class TabActivity extends AppCompatActivity {
     });
     private Object mSyncObserverHandle;
 
-    @SuppressLint("NewApi")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        String packageName = getPackageName();
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-
         if (AccessToken.getCurrentAccessToken() == null ||
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                    (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
-                        || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED)
-                    || !pm.isIgnoringBatteryOptimizations(packageName))) {
+                        (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
+                                || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED))) {
             Intent intent = new Intent(this, MainActivity.class);
             startActivity(intent);
             finish();

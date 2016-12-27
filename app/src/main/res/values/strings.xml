@@ -27,6 +27,6 @@
     <string name="menu_sync">Sync now</string>
     <string name="activity_tab_tab_auto">Auto</string>
     <string name="activity_main_whitelist_not_granted_toast">You forbid to use battery optimization. It doesn\'t allow me to work properly.</string>
-    <string name="activity_main_whitelist_message">There\'s one more thing… Application may be put on the battery optimization list. When it happens your contacts\' photos won\'t be synchronized. However you can add this application to whitelist, preventing optimization.</string>
-    <string name="activity_main_whitelist_btn">Add to optimization whitelist</string>
+    <string name="activity_main_whitelist_message">Application may be put on the Samsung\'s Smart Manager\'s battery optimization list. If it happens your contacts\' photos won\'t be synchronized automatically. To prevent it from happening, you can disable optimization for this application. You\'ll have to click on \"DETAIL\" button, tap \"Photo Syncer\" on the list, and disable optimization.</string>
+    <string name="activity_main_whitelist_btn">Disable optimization</string>
 </resources>

@@ -3,6 +3,8 @@ package com.kksionek.photosyncer.view;
 import android.Manifest;
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -114,19 +116,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showWhitelistScreen() {
-        String packageName = getPackageName();
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !pm.isIgnoringBatteryOptimizations(packageName)) {
+        if (isSmartManagerInstalled()) {
             mTextView.setText(R.string.activity_main_whitelist_message);
             mQuestionBtn.setText(R.string.activity_main_whitelist_btn);
             mQuestionBtn.setOnClickListener(v -> {
                 Intent intent = new Intent();
-                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(Uri.parse("package:" + packageName));
-                startActivityForResult(intent, REQUEST_WHITELIST_PERMISSION);
+                intent.setComponent(new ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity"));
+                try {
+                    startActivity(intent);
+                } catch (ActivityNotFoundException ex) {
+                    Log.d(TAG, "showWhitelistScreen: Strange... Application wasn't detected...");
+                }
             });
         } else
             showSyncScreen();
+    }
+
+    private boolean isSmartManagerInstalled() {
+        PackageManager pm = getPackageManager();
+        try {
+            pm.getPackageInfo("com.samsung.android.sm", PackageManager.GET_ACTIVITIES);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+        }
+        return false;
     }
 
     private void showSyncScreen() {
@@ -134,15 +147,9 @@ public class MainActivity extends AppCompatActivity {
         mQuestionBtn.setText(R.string.activity_main_button_sync);
         mQuestionBtn.setOnClickListener(v -> {
             mQuestionBtn.setEnabled(false);
-            AccountManager systemService = (AccountManager) getSystemService(ACCOUNT_SERVICE);
-            Account account = AccountUtils.getAccount();
-            if (systemService.addAccountExplicitly(account, null, null)) {
-                ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
-                ContentResolver.setSyncAutomatically(account, AccountUtils.CONTENT_AUTHORITY, true);
-                ContentResolver.addPeriodicSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle(),
-                        24 * 60 * 60);
-            }
-            ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
+            Account account = AccountUtils.createAccount(this);
+            if (account != null)
+                ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
             Intent tabIntent = new Intent(this, TabActivity.class);
             startActivity(tabIntent);
             finish();
