@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.view;
+package com.kksionek.photosyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
@@ -26,8 +26,8 @@ import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
-import com.kksionek.fbsyncer.R;
-import com.kksionek.fbsyncer.sync.AccountUtils;
+import com.kksionek.photosyncer.R;
+import com.kksionek.photosyncer.sync.AccountUtils;
 
 import java.util.Arrays;
 

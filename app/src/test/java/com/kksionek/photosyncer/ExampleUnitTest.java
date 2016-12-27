@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.photosyncer;
 
 import org.junit.Test;
 

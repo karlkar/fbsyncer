@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.sync;
+package com.kksionek.photosyncer.sync;
 
 import android.accounts.Account;
 import android.content.AbstractThreadedSyncAdapter;
@@ -19,9 +19,9 @@ import com.facebook.AccessToken;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
-import com.kksionek.fbsyncer.data.Contact;
-import com.kksionek.fbsyncer.data.Friend;
-import com.kksionek.fbsyncer.model.RxContacts;
+import com.kksionek.photosyncer.data.Contact;
+import com.kksionek.photosyncer.data.Friend;
+import com.kksionek.photosyncer.model.RxContacts;
 
 import org.json.JSONArray;
 import org.json.JSONException;

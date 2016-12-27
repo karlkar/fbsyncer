@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.view;
+package com.kksionek.photosyncer.view;
 
 import android.app.Activity;
 import android.content.Context;
@@ -12,9 +12,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.kksionek.fbsyncer.R;
-import com.kksionek.fbsyncer.data.Contact;
-import com.kksionek.fbsyncer.model.ContactsAdapter;
+import com.kksionek.photosyncer.R;
+import com.kksionek.photosyncer.data.Contact;
+import com.kksionek.photosyncer.model.ContactsAdapter;
 
 import io.realm.Realm;
 import io.realm.RealmResults;

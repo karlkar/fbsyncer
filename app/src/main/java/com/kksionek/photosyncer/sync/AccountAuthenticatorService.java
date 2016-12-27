@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.sync;
+package com.kksionek.photosyncer.sync;
 
 import android.accounts.AbstractAccountAuthenticator;
 import android.accounts.Account;

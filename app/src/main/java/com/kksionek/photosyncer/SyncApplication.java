@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer;
+package com.kksionek.photosyncer;
 
 import android.app.Application;
 
@@ -8,7 +8,7 @@ import com.facebook.appevents.AppEventsLogger;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 
-public class FBSyncApplication extends Application {
+public class SyncApplication extends Application {
 
     @Override
     public void onCreate() {
@@ -17,7 +17,7 @@ public class FBSyncApplication extends Application {
         AppEventsLogger.activateApp(this);
         Realm.init(this);
         RealmConfiguration config = new RealmConfiguration.Builder()
-                .name("fbsync.realm")
+                .name("photosync.realm")
                 .deleteRealmIfMigrationNeeded()
                 .build();
         Realm.setDefaultConfiguration(config);

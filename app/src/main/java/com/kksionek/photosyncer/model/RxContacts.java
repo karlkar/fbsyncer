@@ -1,11 +1,11 @@
-package com.kksionek.fbsyncer.model;
+package com.kksionek.photosyncer.model;
 
 import android.content.Context;
 import android.database.Cursor;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 
-import com.kksionek.fbsyncer.data.Contact;
+import com.kksionek.photosyncer.data.Contact;
 
 import rx.Observable;
 import rx.Subscriber;

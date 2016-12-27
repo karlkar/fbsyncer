@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.view;
+package com.kksionek.photosyncer.view;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
@@ -8,7 +8,7 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 
-import com.kksionek.fbsyncer.R;
+import com.kksionek.photosyncer.R;
 
 public class MenuItemSyncCtrl {
     private final Context mCtx;

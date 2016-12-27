@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.view;
+package com.kksionek.photosyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
@@ -22,10 +22,10 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.facebook.AccessToken;
-import com.kksionek.fbsyncer.data.Contact;
-import com.kksionek.fbsyncer.data.Friend;
-import com.kksionek.fbsyncer.R;
-import com.kksionek.fbsyncer.sync.AccountUtils;
+import com.kksionek.photosyncer.data.Contact;
+import com.kksionek.photosyncer.data.Friend;
+import com.kksionek.photosyncer.R;
+import com.kksionek.photosyncer.sync.AccountUtils;
 
 import io.realm.Realm;
 import io.realm.RealmResults;

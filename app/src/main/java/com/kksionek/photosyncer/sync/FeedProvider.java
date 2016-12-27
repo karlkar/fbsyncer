@@ -1,4 +1,4 @@
-package com.kksionek.fbsyncer.sync;
+package com.kksionek.photosyncer.sync;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;

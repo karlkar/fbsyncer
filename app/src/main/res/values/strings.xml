@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FBSyncer</string>
+    <string name="app_name">Photo Syncer</string>
     <string name="facebook_app_id">1741655866050751</string>
     <string name="problem">Problem</string>
     <string name="sync_preference_saved">Sync preference saved.</string>
