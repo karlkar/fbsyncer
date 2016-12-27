@@ -59,7 +59,8 @@ public class TabActivity extends AppCompatActivity {
         if (AccessToken.getCurrentAccessToken() == null ||
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                         (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
-                                || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED))) {
+                                || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED))
+                || !AccountUtils.isAccountCreated(this)) {
             Intent intent = new Intent(this, MainActivity.class);
             startActivity(intent);
             finish();

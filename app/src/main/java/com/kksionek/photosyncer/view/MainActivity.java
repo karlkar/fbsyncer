@@ -2,17 +2,12 @@ package com.kksionek.photosyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.ContentResolver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
-import android.os.PowerManager;
-import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -127,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
                 } catch (ActivityNotFoundException ex) {
                     Log.d(TAG, "showWhitelistScreen: Strange... Application wasn't detected...");
                 }
+                showSyncScreen();
             });
         } else
             showSyncScreen();
@@ -148,11 +144,14 @@ public class MainActivity extends AppCompatActivity {
         mQuestionBtn.setOnClickListener(v -> {
             mQuestionBtn.setEnabled(false);
             Account account = AccountUtils.createAccount(this);
-            if (account != null)
+            if (account != null) {
                 ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
-            Intent tabIntent = new Intent(this, TabActivity.class);
-            startActivity(tabIntent);
-            finish();
+                Intent tabIntent = new Intent(this, TabActivity.class);
+                startActivity(tabIntent);
+                finish();
+            } else {
+                Log.e(TAG, "showSyncScreen: I couldn't create a new account. That's strange");
+            }
         });
     }
 
