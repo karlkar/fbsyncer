@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "599648091571",
+    "firebase_url": "https://photosyncer.firebaseio.com",
+    "project_id": "photosyncer",
+    "storage_bucket": "photosyncer.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:599648091571:android:c4c007314bdce3c0",
+        "android_client_info": {
+          "package_name": "com.kksionek.photosyncer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "599648091571-7rlgr8dnjr7b81975t2lgn8n7tp9dubn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kksionek.photosyncer",
+            "certificate_hash": "1F9779474E7E9842D263D3F48A0E10675334682F"
+          }
+        },
+        {
+          "client_id": "599648091571-6n8tc0ol6e12b63ls75lrkd4n6ap9gq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf_LY1gDlvfxMbHdpw_0lvI7PD3Ld4CCw"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "599648091571-6n8tc0ol6e12b63ls75lrkd4n6ap9gq8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
