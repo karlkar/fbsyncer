@@ -73,6 +73,10 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
         return mGeneratedId;
     }
 
+    public String getFacebookId() {
+        return mId;
+    }
+
     public void setSynced(boolean synced) {
         mSynced = synced;
     }

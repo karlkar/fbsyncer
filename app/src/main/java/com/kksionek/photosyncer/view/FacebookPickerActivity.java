@@ -55,7 +55,7 @@ public class FacebookPickerActivity extends AppCompatActivity {
         mAdapter = new ContactsAdapter(this, notSyncedFriends, false);
         mAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
             @Override
-            public void onClick(View view, Friend friend) {
+            public void onItemClick(View view, Friend friend) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPickerActivity.this);
                 builder.setTitle(R.string.alert_create_bond_title);
                 builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));

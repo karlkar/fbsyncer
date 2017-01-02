@@ -3,6 +3,7 @@ package com.kksionek.photosyncer.view;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.support.v4.view.PagerAdapter;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.DividerItemDecoration;
@@ -12,9 +13,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.facebook.share.model.ShareLinkContent;
+import com.facebook.share.widget.ShareDialog;
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
+import com.kksionek.photosyncer.data.Friend;
 import com.kksionek.photosyncer.model.ContactsAdapter;
+
+import java.util.ArrayList;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -69,7 +75,7 @@ class ViewPagerAdapter extends PagerAdapter {
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, notSyncedContacts, true);
                 contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
                     @Override
-                    public void onClick(View view, Contact contact) {
+                    public void onItemClick(View view, Contact contact) {
                         Intent facebookPicketIntent = new Intent(mParentActivity, FacebookPickerActivity.class);
                         facebookPicketIntent.putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId());
                         mParentActivity.startActivityForResult(facebookPicketIntent, TabActivity.REQUEST_FACEBOOK_PICKER);
@@ -84,24 +90,30 @@ class ViewPagerAdapter extends PagerAdapter {
                         .findAllSorted("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, autoSyncedContacts, true);
-                    contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                        @Override
-                        public void onClick(View view, Contact contact) {
-                            AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
-                            builder.setTitle(R.string.alert_cancel_auto_sync_title);
-                            builder.setMessage(R.string.alert_cancel_auto_sync_message);
-                            builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-                                mRealmUi.executeTransaction(realm -> {
-                                    contact.setRelated(null);
-                                    contact.setManual(true);
-                                    contact.setSynced(true);
-                                });
-                                dialogInterface.dismiss();
+                contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
+                    @Override
+                    public void onItemClick(View view, Contact contact) {
+                        AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
+                        builder.setTitle(R.string.alert_cancel_auto_sync_title);
+                        builder.setMessage(R.string.alert_cancel_auto_sync_message);
+                        builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+                            mRealmUi.executeTransaction(realm -> {
+                                contact.setRelated(null);
+                                contact.setManual(true);
+                                contact.setSynced(true);
                             });
-                            builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
-                            builder.create().show();
-                        }
-                    });
+                            dialogInterface.dismiss();
+                        });
+                        builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
+                        builder.create().show();
+                    }
+                });
+                contactsAdapter.setOnItemLongClickListener(new ContactsAdapter.OnItemLongClickListener<Contact>() {
+                    @Override
+                    public void onItemLongClick(View view, Contact contact) {
+                        shareSyncedContact(contact);
+                    }
+                });
                 break;
             }
             case 2: {
@@ -112,7 +124,7 @@ class ViewPagerAdapter extends PagerAdapter {
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, manualContacts, true);
                 contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
                     @Override
-                    public void onClick(View view, Contact contact) {
+                    public void onItemClick(View view, Contact contact) {
                         AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
                         builder.setTitle(R.string.alert_release_bond_title);
                         builder.setMessage(R.string.alert_release_bond_message);
@@ -131,12 +143,33 @@ class ViewPagerAdapter extends PagerAdapter {
                         builder.create().show();
                     }
                 });
+                contactsAdapter.setOnItemLongClickListener(new ContactsAdapter.OnItemLongClickListener<Contact>() {
+                    @Override
+                    public void onItemLongClick(View view, Contact contact) {
+                        shareSyncedContact(contact);
+                    }
+                });
                 break;
             }
         }
         if (contactsAdapter != null)
             recyclerView.setAdapter(contactsAdapter);
         return view;
+    }
+
+    private void shareSyncedContact(Contact contact) {
+        if (ShareDialog.canShow(ShareLinkContent.class)) {
+            ShareDialog shareDialog = new ShareDialog(mParentActivity);
+            ArrayList<String> tag = new ArrayList<>(1);
+            tag.add(contact.getRelated().getFacebookId());
+            ShareLinkContent shareLinkContent = new ShareLinkContent.Builder()
+                    .setContentTitle(mParentActivity.getString(R.string.view_pager_adapter_share_title))
+                    .setContentDescription(mParentActivity.getString(R.string.view_pager_adapter_share_desc))
+                    .setContentUrl(Uri.parse(mParentActivity.getString(R.string.view_pager_adapter_share_uri)))
+                    .setPeopleIds(tag)
+                    .build();
+            shareDialog.show(shareLinkContent);
+        }
     }
 
     @Override
