@@ -34,3 +34,9 @@
 -keepclassmembers class rx.internal.util.unsafe.BaseLinkedQueueConsumerNodeRef {
     rx.internal.util.atomic.LinkedQueueNode consumerNode;
 }
+
+-keeppackagenames org.jsoup.nodes
+
+-dontwarn java.nio.file.**
+
+-dontwarn org.codehaus.mojo.**

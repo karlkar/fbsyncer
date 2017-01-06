@@ -144,7 +144,7 @@ public class TabActivity extends AppCompatActivity {
                         .findFirst();
                 String friendId = data.getStringExtra(FacebookPickerActivity.EXTRA_RESULT_ID);
                 Friend friend = mRealmUi.where(Friend.class)
-                        .equalTo("mGeneratedId", friendId)
+                        .equalTo("mId", friendId)
                         .findFirst();
                 RealmResults<Friend> sameNameFriends = mRealmUi.where(Friend.class)
                         .equalTo("mName", friend.getName())
