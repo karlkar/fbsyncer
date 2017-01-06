@@ -21,7 +21,7 @@
     <string name="activity_main_button_sync">Sync</string>
     <string name="activity_main_prerequisites_fulfilled_message">All prerequirements are fulfilled - I have access to your contacts and you\'re logged in to Facebook account. We can start the process now!</string>
     <string name="activity_main_button_login_facebook">Login to facebook</string>
-    <string name="activity_main_facebook_permission_request_message">In order to sync your contact images I need an access to your Facebook account. I will use it only to obtain profile images of your friends. Please press the button to login to Facebook.</string>
+    <string name="activity_main_facebook_permission_request_message">In order to sync your contact images I need an access to your Facebook account. I will use it only to obtain profile images of your friends. Please fill the fields and press the button to save Facebook credentials.</string>
     <string name="activity_main_button_grant_contacts_access">Grant access</string>
     <string name="activity_main_grant_contacts_access_message">In order to sync your contact images I need an access to your contacts. I will have to read them and modify if I will find a proper image. Please press the button to grant me access.</string>
     <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
@@ -30,7 +30,7 @@
     <string name="activity_main_whitelist_not_granted_toast">You forbid to use battery optimization. It doesn\'t allow me to work properly.</string>
     <string name="activity_main_whitelist_message">Application may be put on the Samsung\'s Smart Manager\'s battery optimization list. If it happens your contacts\' photos won\'t be synchronized automatically. To prevent it from happening, you can disable optimization for this application. You\'ll have to click on \"DETAIL\" button, tap \"Photo Syncer\" on the list, and disable optimization.</string>
     <string name="activity_main_whitelist_btn">Disable optimization</string>
-    <string name="view_pager_adapter_share_title">Contact photo synchronized!</string>
-    <string name="view_pager_adapter_share_desc">I\'ve just synchronized my contact\'s photos using PhotoSyncer for Android!</string>
-    <string name="view_pager_adapter_share_uri">https://play.google.com/store/apps/details?id=com.kksionek.photosyncer</string>
+    <string name="activity_main_facebook_password_hint">Facebook password</string>
+    <string name="activity_main_facebook_login_hint">Facebook login</string>
+    <string name="activity_main_login_failed_toast">Please provide proper login info</string>
 </resources>

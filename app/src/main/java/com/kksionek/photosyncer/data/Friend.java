@@ -12,7 +12,6 @@ import io.realm.annotations.PrimaryKey;
 
 public class Friend extends RealmObject implements Person, Comparable<Person> {
     @PrimaryKey
-    private String mGeneratedId;
     private String mId;
     private String mName;
     private String mPhoto;
@@ -28,26 +27,12 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
         mOld = false;
     }
 
-    public Friend(JSONObject jsonObject) {
+    public Friend(String uid, String name, String photo) {
+        mId = uid;
+        mName = name;
+        mPhoto = photo;
         mSynced = false;
         mOld = false;
-        try {
-            mId = jsonObject.getString("id");
-            mName = jsonObject.getString("name");
-            mPhoto = jsonObject.getJSONObject("picture").getJSONObject("data").getString("url");
-        } catch (JSONException | NullPointerException e) {
-            e.printStackTrace();
-            mId = "";
-            mPhoto = "";
-            mName = "";
-        }
-        Realm realm = Realm.getDefaultInstance();
-        RealmResults<Friend> friendsWithTheSameName = realm.where(Friend.class)
-                .equalTo("mName", mName)
-                .equalTo("mOld", false)
-                .findAll();
-        mGeneratedId = Integer.toString((mName + friendsWithTheSameName.size()).hashCode());
-        realm.close();
     }
 
     @Override
@@ -70,7 +55,7 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
     }
 
     public String getId() {
-        return mGeneratedId;
+        return mId;
     }
 
     public String getFacebookId() {

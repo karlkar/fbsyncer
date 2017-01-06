@@ -12,16 +12,15 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
 
-import com.facebook.AccessToken;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
 import com.kksionek.photosyncer.R;
+import com.kksionek.photosyncer.model.SecurePreferences;
 import com.kksionek.photosyncer.sync.AccountUtils;
 
 import io.realm.Realm;
@@ -30,6 +29,7 @@ import io.realm.RealmResults;
 public class TabActivity extends AppCompatActivity {
 
     public static final int REQUEST_FACEBOOK_PICKER = 4445;
+
     private static final String TAG = "TABACTIVITY";
 
     private Realm mRealmUi;
@@ -42,7 +42,7 @@ public class TabActivity extends AppCompatActivity {
         boolean syncPending = ContentResolver.isSyncPending(
                 account, AccountUtils.CONTENT_AUTHORITY);
 
-        Log.d(TAG, "Event received: " + (syncActive || syncPending));
+        //Log.d(TAG, "Event received: " + (syncActive || syncPending));
         if (mMenuItemSyncCtrl != null) {
             if (syncActive || syncPending)
                 mMenuItemSyncCtrl.startAnimation();
@@ -55,8 +55,9 @@ public class TabActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (AccessToken.getCurrentAccessToken() == null ||
+        SecurePreferences prefs = new SecurePreferences(getBaseContext(), "tmp", "NoTifiCationHandLer", true);
+        if (((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
+                && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty())) ||
                 (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                         (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
                                 || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED))
@@ -171,5 +172,4 @@ public class TabActivity extends AppCompatActivity {
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
-
 }

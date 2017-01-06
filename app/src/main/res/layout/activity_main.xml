@@ -29,6 +29,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
 
+        <EditText
+            android:id="@+id/fbLogin"
+            android:hint="@string/activity_main_facebook_login_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"/>
+
+        <EditText
+            android:id="@+id/fbPass"
+            android:inputType="textPassword"
+            android:hint="@string/activity_main_facebook_password_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"/>
+
         <Button
             android:id="@+id/questionButton"
             android:layout_gravity="center_horizontal"

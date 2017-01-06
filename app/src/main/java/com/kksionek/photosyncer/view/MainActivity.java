@@ -13,20 +13,15 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.facebook.AccessToken;
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
-import com.facebook.login.LoginManager;
-import com.facebook.login.LoginResult;
 import com.kksionek.photosyncer.R;
+import com.kksionek.photosyncer.model.SecurePreferences;
 import com.kksionek.photosyncer.sync.AccountUtils;
-
-import java.util.Arrays;
 
 import io.realm.Realm;
 
@@ -37,8 +32,9 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private TextView mTextView;
+    private EditText mFbLogin;
+    private EditText mFbPass;
     private Button mQuestionBtn;
-    private CallbackManager mCallbackManager;
 
     private Realm mRealmUi;
 
@@ -48,26 +44,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mTextView = (TextView) findViewById(R.id.questionTextView);
+        mFbLogin = (EditText) findViewById(R.id.fbLogin);
+        mFbPass = (EditText) findViewById(R.id.fbPass);
         mQuestionBtn = (Button) findViewById(R.id.questionButton);
-
-        mCallbackManager = CallbackManager.Factory.create();
-
-        LoginManager.getInstance().registerCallback(mCallbackManager, new FacebookCallback<LoginResult>() {
-            @Override
-            public void onSuccess(LoginResult loginResult) {
-                showWhitelistScreen();
-            }
-
-            @Override
-            public void onCancel() {
-                Toast.makeText(MainActivity.this, R.string.activity_main_login_cancelled_message, Toast.LENGTH_LONG).show();
-            }
-
-            @Override
-            public void onError(FacebookException error) {
-                Log.d(TAG, "onError: Failed to login to facebook");
-            }
-        });
 
         mRealmUi = Realm.getDefaultInstance();
 
@@ -99,13 +78,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showFbLoginScreen() {
-        if (AccessToken.getCurrentAccessToken() == null) {
+        SecurePreferences prefs = new SecurePreferences(getBaseContext(), "tmp", "NoTifiCationHandLer", true);
+        if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
+                && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty())) {
             mTextView.setText(R.string.activity_main_facebook_permission_request_message);
+            mFbLogin.setVisibility(View.VISIBLE);
+            mFbPass.setVisibility(View.VISIBLE);
             mQuestionBtn.setText(R.string.activity_main_button_login_facebook);
-            mQuestionBtn.setOnClickListener(v ->
-                    LoginManager.getInstance().logInWithReadPermissions(
-                            MainActivity.this,
-                            Arrays.asList("user_friends")));
+            mQuestionBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String login = mFbLogin.getText().toString();
+                    String pass = mFbPass.getText().toString();
+
+                    if (!login.isEmpty() && !pass.isEmpty()) {
+                        prefs.put("PREF_LOGIN", login);
+                        prefs.put("PREF_PASSWORD", pass);
+                        mFbLogin.setVisibility(View.GONE);
+                        mFbPass.setVisibility(View.GONE);
+                        showWhitelistScreen();
+                    } else {
+                        Toast.makeText(getBaseContext(), R.string.activity_main_login_failed_toast, Toast.LENGTH_SHORT).show();
+                    }
+                }
+            });
         } else
             showWhitelistScreen();
     }
@@ -143,14 +139,22 @@ public class MainActivity extends AppCompatActivity {
         mQuestionBtn.setText(R.string.activity_main_button_sync);
         mQuestionBtn.setOnClickListener(v -> {
             mQuestionBtn.setEnabled(false);
-            Account account = AccountUtils.createAccount(this);
-            if (account != null) {
-                ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
+            if (!AccountUtils.isAccountCreated(getBaseContext())) {
+                Account account = AccountUtils.createAccount(this);
+                if (account != null) {
+                    ContentResolver.requestSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle());
+                    Intent tabIntent = new Intent(this, TabActivity.class);
+                    startActivity(tabIntent);
+                    finish();
+                } else {
+                    Log.e(TAG, "showSyncScreen: I couldn't create a new account. That's strange");
+                    finish();
+                }
+            } else {
+                ContentResolver.requestSync(AccountUtils.getAccount(), AccountUtils.CONTENT_AUTHORITY, new Bundle());
                 Intent tabIntent = new Intent(this, TabActivity.class);
                 startActivity(tabIntent);
                 finish();
-            } else {
-                Log.e(TAG, "showSyncScreen: I couldn't create a new account. That's strange");
             }
         });
     }
@@ -166,7 +170,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         super.onActivityResult(requestCode, resultCode, data);
-        mCallbackManager.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override

@@ -37,27 +37,17 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
         void onItemClick(View view, T contact);
     }
 
-    public interface OnItemLongClickListener<T> {
-        void onItemLongClick(View view, T contact);
-    }
-
     private final Context mContext;
     private OnItemClickListener mListener;
-    private OnItemLongClickListener mLongListener;
 
     public ContactsAdapter(@NonNull Context context, @Nullable OrderedRealmCollection<T> data, boolean autoUpdate) {
         super(context, data, autoUpdate);
         mContext = context;
         mListener = null;
-        mLongListener = null;
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
         mListener = listener;
-    }
-
-    public void setOnItemLongClickListener(OnItemLongClickListener listener) {
-        mLongListener = listener;
     }
 
     @Override
@@ -79,12 +69,6 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
         holder.parentView.setOnClickListener(view -> {
             if (mListener != null)
                 mListener.onItemClick(view, contact);
-        });
-
-        holder.parentView.setOnLongClickListener(v -> {
-            if (mLongListener != null)
-                mLongListener.onItemLongClick(v, contact);
-            return mLongListener != null;
         });
     }
 }

@@ -15,25 +15,23 @@ import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
-import com.facebook.AccessToken;
-import com.facebook.GraphRequest;
-import com.facebook.GraphResponse;
-import com.facebook.HttpMethod;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
 import com.kksionek.photosyncer.model.RxContacts;
+import com.kksionek.photosyncer.model.SecurePreferences;
 
-import org.json.JSONArray;
-import org.json.JSONException;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -43,13 +41,26 @@ import java.util.regex.Pattern;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
+import okhttp3.Cookie;
+import okhttp3.CookieJar;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import rx.Observable;
+import rx.Single;
 import rx.schedulers.Schedulers;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     private static final String TAG = "SYNCADAPTER";
     private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
+
+    public static final MediaType URLENCODED
+            = MediaType.parse("application/x-www-form-urlencoded");
+    private OkHttpClient mOkHttpClient;
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -68,7 +79,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.immediate())
                 .toBlocking()
-                .subscribe(o -> performSync());
+                .subscribe(
+                        o -> performSync(),
+                        throwable -> Log.e(TAG, "onPerformSync: Wrong login/password"));
         Log.d(TAG, "onPerformSync: END");
     }
 
@@ -121,64 +134,198 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     ioRealm.close();
                 });
     }
+    private Single<String> fbLogin() {
+        return Single.fromEmitter(singleEmitter -> {
+            SecurePreferences prefs = new SecurePreferences(getContext(), "tmp", "NoTifiCationHandLer", true);
+            if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
+                    && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty()))
+                singleEmitter.onError(new Exception("Login and/or password not set"));
 
-    @NonNull
-    public Observable<List<Friend>> getFriendsRx() {
-        return Observable.<GraphResponse>create(subscriber -> {
-            AccessToken accessToken = AccessToken.getCurrentAccessToken();
-            if (accessToken == null) {
-                subscriber.onError(new NullPointerException("AccessToken is null"));
+            mOkHttpClient = new OkHttpClient.Builder()
+                    .cookieJar(new CookieJar() {
+                        private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
+
+                        @Override
+                        public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
+                            cookieStore.put(url.host(), cookies);
+                        }
+
+                        @Override
+                        public List<Cookie> loadForRequest(HttpUrl url) {
+                            List<Cookie> cookies = cookieStore.get(url.host());
+                            return cookies != null ? cookies : new ArrayList<>();
+                        }
+                    })
+                    .build();
+            Request req = new Request.Builder()
+                    .url("https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&refsrc=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&_rdr")
+                    .build();
+
+            String responseStr = null;
+            try {
+                Response response = mOkHttpClient.newCall(req).execute();
+                if (response.isSuccessful())
+                    responseStr = response.body().string();
+                response.close();
+            } catch (IOException e) {
+                singleEmitter.onError(e);
                 return;
             }
-            String nextToken = "";
-            Bundle params;
-            GraphResponse response;
-            while (nextToken != null) {
-                params = null;
-                if (!nextToken.isEmpty()) {
-                    params = new Bundle();
-                    params.putString("after", nextToken);
-                }
-                response = new GraphRequest(accessToken, "/me/taggable_friends",
-                        params, HttpMethod.GET).executeAndWait();
-                if (response.getError() != null) {
-                    subscriber.onError(response.getError().getException());
-                    nextToken = null;
-                } else {
-                    subscriber.onNext(response);
-                    if (response.getJSONObject().isNull("paging")) {
-                        nextToken = null;
-                        subscriber.onCompleted();
-                    } else {
-                        try {
-                            nextToken = response.getJSONObject().getJSONObject("paging").getJSONObject("cursors").getString("after");
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            subscriber.onError(e);
-                            nextToken = null;
-                        }
-                    }
-                }
+
+            if (responseStr == null) {
+                singleEmitter.onError(new Exception("Response is null"));
+                return;
             }
-        })
+
+            Document doc = Jsoup.parse(responseStr);
+            Element lsd = doc.select("input[name=lsd]").first();
+            Element m_ts = doc.select("input[name=m_ts]").first();
+            Element li = doc.select("input[name=li]").first();
+
+            RequestBody reqBody = null;
+            try {
+                reqBody = RequestBody.create(URLENCODED,
+                        "email=" + URLEncoder.encode(prefs.getString("PREF_LOGIN"), "utf-8") + "&" +
+                        "pass=" + URLEncoder.encode(prefs.getString("PREF_PASSWORD"), "utf-8") + "&" +
+                        "lsd=" + lsd.val() + "&" +
+                        "version=1&" +
+                        "width=0&" +
+                        "pxr=0&" +
+                        "gps=0&" +
+                        "dimensions=0&" +
+                        "ajax=0&" +
+                        "m_ts=" + m_ts.val() + "&" +
+                        "login=Zaloguj+si%C4%99&" +
+                        "_fb_noscript=true&" +
+                        "li=" + li.val() + "");
+            } catch (UnsupportedEncodingException e) {
+                singleEmitter.onError(e);
+                return;
+            }
+            req = new Request.Builder()
+                    .url("https://m.facebook.com/login.php?next=https://m.facebook.com/friends/center/friends/&refsrc=https://m.facebook.com/friends/center/friends/&lwv=100&login_try_number=1&refid=9")
+                    .post(reqBody)
+                    .build();
+
+            try {
+                Response response = mOkHttpClient.newCall(req).execute();
+                if (response.isSuccessful())
+                    responseStr = response.body().string();
+                response.close();
+            } catch (IOException e) {
+                singleEmitter.onError(e);
+                return;
+            }
+            if (responseStr == null) {
+                singleEmitter.onError(new Exception("Response is null"));
+                return;
+            }
+            if (responseStr.contains("login_form")) {
+                Log.e(TAG, "fbLogin: Wrong login/password");
+                prefs.clear();
+                singleEmitter.onError(new Exception("Wrong login and/or password"));
+            }
+            singleEmitter.onSuccess(responseStr);
+        });
+    }
+
+    private Observable<List<Friend>> getRxFriends() {
+        return fbLogin()
                 .subscribeOn(Schedulers.io())
-                .flatMap(response -> {
-                    List<Friend> list = new ArrayList<>();
-                    try {
-                        JSONArray friendArray = response.getJSONObject().getJSONArray("data");
-                        for (int i = 0; i < friendArray.length(); ++i) {
-                            list.add(new Friend(friendArray.getJSONObject(i)));
+                .flatMapObservable(resp -> {
+                    int ppk = 0;
+                    ArrayList<String> uids = new ArrayList<>();
+                    do {
+                        Pattern uidPattern = Pattern.compile("\\?uid=(.*?)&");
+                        Matcher matcher = uidPattern.matcher(resp);
+                        while (matcher.find()) {
+                            String group = matcher.group(1);
+                            uids.add(group);
                         }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                    return Observable.from(list);
-                }).toList();
+
+                        ++ppk;
+                        Request req = new Request.Builder()
+                                .url("https://m.facebook.com/friends/center/friends/?ppk=" + ppk + "&bph=" + ppk + "#friends_center_main")
+                                .build();
+                        try {
+                            Response response = mOkHttpClient.newCall(req).execute();
+                            if (response.isSuccessful())
+                                resp = response.body().string();
+                            response.close();
+                        } catch (IOException e) {
+                            return Observable.error(e);
+                        }
+                    } while (resp.contains("?uid="));
+                    Log.d(TAG, "getRxFriends: Found " + uids.size() + " friends.");
+                    return Observable.from(uids);
+                })
+                .flatMap(s -> Observable.just(s)
+                        .subscribeOn(Schedulers.io())
+                        .flatMap(uid -> getRxFriend(uid)), 10)
+                .filter(friend -> friend != null)
+                .toList();
+    }
+
+    private Observable<Friend> getRxFriend(@NonNull String uid) {
+        return Observable.fromCallable(() -> {
+            Request req = new Request.Builder()
+                    .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com")
+                    .build();
+
+            String responseStr = null;
+
+            Response response = mOkHttpClient.newCall(req).execute();
+            if (response.isSuccessful())
+                responseStr = response.body().string();
+            else {
+                response.close();
+                return null;
+            }
+            response.close();
+
+            int profPicIdx = responseStr.indexOf("profpic img");
+            responseStr = responseStr.substring(profPicIdx - 400, profPicIdx + 200);
+            String photoUrl = null;
+            Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
+            Matcher m = p.matcher(responseStr);
+            if (m.find()) {
+                photoUrl = m.group(1).replace("&amp;", "&");
+            }
+
+            String name = null;
+            Pattern p2 = Pattern.compile("alt=\"(.+?)\"");
+            m = p2.matcher(responseStr);
+            if (m.find()) {
+                name = StringEscapeUtils.unescapeHtml4(m.group(1));
+            }
+            if (responseStr.contains("ł"))
+                Log.d(TAG, "getRxFriend: Contains ł " + name);
+            return new Friend(uid, name, photoUrl);
+        });
+    }
+
+    public Bitmap getBitmapFromURL(@NonNull String src) {
+        try {
+            Request req = new Request.Builder()
+                    .url(src)
+                    .build();
+            Response resp = mOkHttpClient.newCall(req).execute();
+            if (resp.isSuccessful()) {
+                InputStream inputStream = resp.body().byteStream();
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                inputStream.close();
+                resp.close();
+                return bitmap;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @NonNull
     private Observable<List<Friend>> getAndRealmFriends() {
-        return getFriendsRx()
+        return getRxFriends()
                 .doOnNext(friends -> {
                     if (Looper.myLooper() == null)
                         Looper.prepare();
@@ -300,62 +447,5 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public Bitmap getBitmapFromURL(@NonNull String src) {
-        src = tryToGetBetterQualityPic(src);
-
-        try {
-            URL url = new URL(src);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoInput(true);
-            connection.connect();
-            InputStream input = connection.getInputStream();
-            Bitmap bitmap = BitmapFactory.decodeStream(input);
-            input.close();
-            connection.disconnect();
-            return bitmap;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    private String tryToGetBetterQualityPic(@NonNull String photo) {
-        Pattern r = Pattern.compile("_(\\d+?)_");
-
-        Matcher m = r.matcher(photo);
-        if (m.find()) {
-            try {
-                URL url = new URL("https://www.facebook.com/photo.php?fbid=" + m.group(1));
-                HttpURLConnection.setFollowRedirects(true);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:46.0) Gecko/20100101 Firefox/46.0");
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-
-                StringBuilder builder = new StringBuilder();
-                String line;
-                Pattern p = Pattern.compile("src=\"(.+?" + m.group(1) + ".+?)\"");
-                while ((line = reader.readLine()) != null) {
-                    builder.append(line);
-                }
-                reader.close();
-                connection.disconnect();
-
-                String body = builder.toString();
-                m = p.matcher(body);
-                while (m.find()) {
-                    if (m.group(1).contains("50x50/"))
-                        continue;
-                    if (!m.group(1).contains("scontent"))
-                        continue;
-                    reader.close();
-                    return m.group(1).replace("&amp;", "&");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return photo;
     }
 }
