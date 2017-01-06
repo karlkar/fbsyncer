@@ -134,36 +134,21 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     ioRealm.close();
                 });
     }
-    private Single<String> fbLogin() {
+
+    public static Single<String> fbLogin(OkHttpClient okHttpClient, Context context) {
         return Single.fromEmitter(singleEmitter -> {
-            SecurePreferences prefs = new SecurePreferences(getContext(), "tmp", "NoTifiCationHandLer", true);
+            SecurePreferences prefs = new SecurePreferences(context, "tmp", "NoTifiCationHandLer", true);
             if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
                     && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty()))
                 singleEmitter.onError(new Exception("Login and/or password not set"));
 
-            mOkHttpClient = new OkHttpClient.Builder()
-                    .cookieJar(new CookieJar() {
-                        private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
-
-                        @Override
-                        public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-                            cookieStore.put(url.host(), cookies);
-                        }
-
-                        @Override
-                        public List<Cookie> loadForRequest(HttpUrl url) {
-                            List<Cookie> cookies = cookieStore.get(url.host());
-                            return cookies != null ? cookies : new ArrayList<>();
-                        }
-                    })
-                    .build();
             Request req = new Request.Builder()
                     .url("https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&refsrc=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&_rdr")
                     .build();
 
             String responseStr = null;
             try {
-                Response response = mOkHttpClient.newCall(req).execute();
+                Response response = okHttpClient.newCall(req).execute();
                 if (response.isSuccessful())
                     responseStr = response.body().string();
                 response.close();
@@ -208,7 +193,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     .build();
 
             try {
-                Response response = mOkHttpClient.newCall(req).execute();
+                Response response = okHttpClient.newCall(req).execute();
                 if (response.isSuccessful())
                     responseStr = response.body().string();
                 response.close();
@@ -230,7 +215,25 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private Observable<List<Friend>> getRxFriends() {
-        return fbLogin()
+        if (mOkHttpClient == null) {
+            mOkHttpClient = new OkHttpClient.Builder()
+                    .cookieJar(new CookieJar() {
+                        private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
+
+                        @Override
+                        public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
+                            cookieStore.put(url.host(), cookies);
+                        }
+
+                        @Override
+                        public List<Cookie> loadForRequest(HttpUrl url) {
+                            List<Cookie> cookies = cookieStore.get(url.host());
+                            return cookies != null ? cookies : new ArrayList<>();
+                        }
+                    })
+                    .build();
+        }
+        return fbLogin(mOkHttpClient, getContext())
                 .subscribeOn(Schedulers.io())
                 .flatMapObservable(resp -> {
                     int ppk = 0;

@@ -2,6 +2,9 @@ package com.kksionek.photosyncer.view;
 
 import android.Manifest;
 import android.accounts.Account;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.annotation.TargetApi;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -16,14 +19,20 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.model.SecurePreferences;
 import com.kksionek.photosyncer.sync.AccountUtils;
+import com.kksionek.photosyncer.sync.SyncAdapter;
 
 import io.realm.Realm;
+import okhttp3.OkHttpClient;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
     private TextView mTextView;
+    private ProgressBar mLoginProgress;
+    private LinearLayout mFbLoginForm;
     private EditText mFbLogin;
     private EditText mFbPass;
     private Button mQuestionBtn;
@@ -44,6 +55,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mTextView = (TextView) findViewById(R.id.questionTextView);
+        mLoginProgress = (ProgressBar) findViewById(R.id.loginProgress);
+        mFbLoginForm = (LinearLayout) findViewById(R.id.fbLoginForm);
         mFbLogin = (EditText) findViewById(R.id.fbLogin);
         mFbPass = (EditText) findViewById(R.id.fbPass);
         mQuestionBtn = (Button) findViewById(R.id.questionButton);
@@ -82,28 +95,64 @@ public class MainActivity extends AppCompatActivity {
         if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
                 && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty())) {
             mTextView.setText(R.string.activity_main_facebook_permission_request_message);
-            mFbLogin.setVisibility(View.VISIBLE);
-            mFbPass.setVisibility(View.VISIBLE);
+            showProgress(false);
             mQuestionBtn.setText(R.string.activity_main_button_login_facebook);
-            mQuestionBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    String login = mFbLogin.getText().toString();
-                    String pass = mFbPass.getText().toString();
+            mQuestionBtn.setOnClickListener(v -> {
+                showProgress(true);
+                String login = mFbLogin.getText().toString();
+                String pass = mFbPass.getText().toString();
 
-                    if (!login.isEmpty() && !pass.isEmpty()) {
-                        prefs.put("PREF_LOGIN", login);
-                        prefs.put("PREF_PASSWORD", pass);
-                        mFbLogin.setVisibility(View.GONE);
-                        mFbPass.setVisibility(View.GONE);
-                        showWhitelistScreen();
-                    } else {
-                        Toast.makeText(getBaseContext(), R.string.activity_main_login_failed_toast, Toast.LENGTH_SHORT).show();
-                    }
+                if (!login.isEmpty() && !pass.isEmpty()) {
+                    prefs.put("PREF_LOGIN", login);
+                    prefs.put("PREF_PASSWORD", pass);
+                    SyncAdapter.fbLogin(new OkHttpClient(), getBaseContext())
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(
+                                    s -> {
+                                        mLoginProgress.setVisibility(View.GONE);
+                                        showWhitelistScreen();
+                                    },
+                                    throwable -> {
+                                        showProgress(false);
+                                        prefs.clear();
+                                        Toast.makeText(getBaseContext(), R.string.activity_main_login_failed_toast, Toast.LENGTH_SHORT).show();
+                                    });
+                } else {
+                    showProgress(false);
+                    Toast.makeText(getBaseContext(), R.string.activity_main_login_failed_toast, Toast.LENGTH_SHORT).show();
                 }
             });
         } else
             showWhitelistScreen();
+    }
+
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
+    private void showProgress(final boolean show) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
+            int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
+
+            mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
+            mFbLoginForm.animate().setDuration(shortAnimTime).alpha(
+                    show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
+                }
+            });
+
+            mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
+            mLoginProgress.animate().setDuration(shortAnimTime).alpha(
+                    show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
+                }
+            });
+        } else {
+            mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
+            mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
+        }
     }
 
     private void showWhitelistScreen() {
