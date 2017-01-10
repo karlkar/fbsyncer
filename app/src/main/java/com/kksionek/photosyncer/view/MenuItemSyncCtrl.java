@@ -10,6 +10,8 @@ import android.widget.ImageView;
 
 import com.kksionek.photosyncer.R;
 
+import java.util.zip.Inflater;
+
 public class MenuItemSyncCtrl {
     private final Context mCtx;
     private final MenuItem mMenuItem;
@@ -26,10 +28,10 @@ public class MenuItemSyncCtrl {
         if (mAnimating)
             return;
         mAnimating = true;
-        if (mRefreshImage == null) {
-            LayoutInflater inflater = (LayoutInflater) mCtx.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            mRefreshImage = (ImageView) inflater.inflate(R.layout.refresh_action_view, null);
-        }
+        if (mRefreshImage == null)
+            mRefreshImage = (ImageView) LayoutInflater.from(mCtx).inflate(
+                    R.layout.refresh_action_view,
+                    null);
         if (mRotationAnimation == null)
             mRotationAnimation = AnimationUtils.loadAnimation(mCtx, R.anim.anim_rotate);
         if (mMenuItem.getActionView() == null) {

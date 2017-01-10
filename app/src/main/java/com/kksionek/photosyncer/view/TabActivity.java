@@ -98,8 +98,7 @@ public class TabActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.main_menu, menu);
+        getMenuInflater().inflate(R.menu.main_menu, menu);
         MenuItem menuItem = menu.findItem(R.id.menu_sync);
         if (menuItem != null)
             mMenuItemSyncCtrl = new MenuItemSyncCtrl(this, menuItem);
