@@ -4,7 +4,6 @@ import android.Manifest;
 import android.accounts.Account;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.annotation.TargetApi;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -127,32 +126,26 @@ public class MainActivity extends AppCompatActivity {
             showWhitelistScreen();
     }
 
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
     private void showProgress(final boolean show) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-            int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
+        int shortAnimTime = getResources().getInteger(android.R.integer.config_shortAnimTime);
 
-            mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
-            mFbLoginForm.animate().setDuration(shortAnimTime).alpha(
-                    show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
-                }
-            });
+        mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
+        mFbLoginForm.animate().setDuration(shortAnimTime).alpha(
+                show ? 0 : 1).setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
+            }
+        });
 
-            mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
-            mLoginProgress.animate().setDuration(shortAnimTime).alpha(
-                    show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
-                }
-            });
-        } else {
-            mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
-            mFbLoginForm.setVisibility(show ? View.GONE : View.VISIBLE);
-        }
+        mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
+        mLoginProgress.animate().setDuration(shortAnimTime).alpha(
+                show ? 1 : 0).setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mLoginProgress.setVisibility(show ? View.VISIBLE : View.GONE);
+            }
+        });
     }
 
     private void showWhitelistScreen() {
