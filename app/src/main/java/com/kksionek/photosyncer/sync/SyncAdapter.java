@@ -81,7 +81,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 .toBlocking()
                 .subscribe(
                         o -> performSync(),
-                        throwable -> Log.e(TAG, "onPerformSync: Wrong login/password"));
+                        throwable -> {
+                            Log.e(TAG, "onPerformSync: Wrong login/password");
+                            throwable.printStackTrace();
+                        });
         Log.d(TAG, "onPerformSync: END");
     }
 
@@ -216,12 +219,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     private Observable<List<Friend>> getRxFriends() {
         if (mOkHttpClient == null) {
+
             mOkHttpClient = new OkHttpClient.Builder()
                     .cookieJar(new CookieJar() {
                         private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
 
                         @Override
                         public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
+                            if (cookies.size() == 1)
+                                return;
                             cookieStore.put(url.host(), cookies);
                         }
 
@@ -264,7 +270,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 })
                 .flatMap(s -> Observable.just(s)
                         .subscribeOn(Schedulers.io())
-                        .flatMap(uid -> getRxFriend(uid)), 10)
+                        .flatMap(this::getRxFriend), 1)
                 .filter(friend -> friend != null)
                 .toList();
     }
@@ -272,7 +278,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private Observable<Friend> getRxFriend(@NonNull String uid) {
         return Observable.fromCallable(() -> {
             Request req = new Request.Builder()
-                    .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com")
+                    .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F%3Frefid%3D9%26mfl_act%3D1%23last_acted")
                     .build();
 
             String responseStr = null;
@@ -301,8 +307,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             if (m.find()) {
                 name = StringEscapeUtils.unescapeHtml4(m.group(1));
             }
-            if (responseStr.contains("ł"))
-                Log.d(TAG, "getRxFriend: Contains ł " + name);
             return new Friend(uid, name, photoUrl);
         });
     }
