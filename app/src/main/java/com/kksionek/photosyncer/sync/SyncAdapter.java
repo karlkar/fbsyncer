@@ -417,7 +417,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         contact.getRelated().setSynced(true);
     }
 
-    private void setContactPhoto(@NonNull final String friendId, @NonNull final String photo) {
+    private void setContactPhoto(@NonNull final String rawContactId, @NonNull final String photo) {
         Bitmap bitmap = getBitmapFromURL(photo);
         if (bitmap == null)
             return;
@@ -427,15 +427,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         byte[] photoData = streamy.toByteArray();
         ContentValues values = new ContentValues();
 
-        values.put(ContactsContract.Data.RAW_CONTACT_ID, friendId);
+        values.put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId);
         values.put(ContactsContract.Data.IS_SUPER_PRIMARY, 1);
         values.put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoData);
         values.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE);
 
-        Log.d(TAG, "setContactPhoto: id = " + friendId);
+        Log.d(TAG, "setContactPhoto: id = " + rawContactId);
 
         int photoRow = -1;
-        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + friendId + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
+        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + rawContactId + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
         Cursor cursor = getContext().getContentResolver().query(ContactsContract.Data.CONTENT_URI, new String[]{ContactsContract.Contacts.Data._ID}, where, null, null);
         if (cursor.moveToFirst())
             photoRow = cursor.getInt(0);
@@ -447,6 +447,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     values,
                     ContactsContract.Data._ID + " = " + photoRow, null);
         } else {
+            Log.d(TAG, "setContactPhoto: INSERT " + rawContactId);
             getContext().getContentResolver().insert(ContactsContract.Data.CONTENT_URI, values);
         }
         try {
