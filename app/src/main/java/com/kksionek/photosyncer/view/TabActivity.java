@@ -129,8 +129,8 @@ public class TabActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         mRealmUi.close();
+        super.onDestroy();
     }
 
     @Override

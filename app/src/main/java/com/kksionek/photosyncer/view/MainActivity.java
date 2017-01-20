@@ -67,8 +67,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         mRealmUi.close();
+        super.onDestroy();
     }
 
     private void showPermissionRequestScreen() {

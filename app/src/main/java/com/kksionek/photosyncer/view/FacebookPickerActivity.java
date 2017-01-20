@@ -83,7 +83,7 @@ public class FacebookPickerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         mRealm.close();
+        super.onDestroy();
     }
 }
