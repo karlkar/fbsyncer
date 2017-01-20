@@ -16,14 +16,12 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
     private String mName;
     private String mPhoto;
 
-    private boolean mSynced;
     private boolean mOld;
 
     public Friend() {
         mId = null;
         mName = null;
         mPhoto = null;
-        mSynced = false;
         mOld = false;
     }
 
@@ -31,7 +29,6 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
         mId = uid;
         mName = name;
         mPhoto = photo;
-        mSynced = false;
         mOld = false;
     }
 
@@ -60,10 +57,6 @@ public class Friend extends RealmObject implements Person, Comparable<Person> {
 
     public String getFacebookId() {
         return mId;
-    }
-
-    public void setSynced(boolean synced) {
-        mSynced = synced;
     }
 
     public void setOld(boolean old) {

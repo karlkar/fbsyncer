@@ -119,8 +119,6 @@ class ViewPagerAdapter extends PagerAdapter {
                         //TODO: make another dialog/preference remembering if app should remove photo automatically
                         builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
                             mRealmUi.executeTransaction(realm -> {
-                                if (contact.getRelated() != null)
-                                    contact.getRelated().setSynced(false);
                                 contact.setRelated(null);
                                 contact.setManual(false);
                                 contact.setSynced(false);

@@ -152,7 +152,6 @@ public class TabActivity extends AppCompatActivity {
                 mRealmUi.executeTransaction(realm -> {
                     contact.setRelated(friend);
                     contact.setSynced(true);
-                    contact.getRelated().setSynced(true);
                     contact.setManual(true);
                 });
                 // TODO: Sync single

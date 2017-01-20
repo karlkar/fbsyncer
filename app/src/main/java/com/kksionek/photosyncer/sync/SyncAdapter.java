@@ -410,7 +410,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             Log.d(TAG, "syncToRelated: No new photo. Synchronization skipped for [" + contact.getName() + "]");
             contact.setSynced(true);
             contact.setManual(manual);
-            contact.getRelated().setSynced(true);
         } else {
             if (manual)
                 Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
@@ -424,7 +423,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             contact.setSynced(true);
             contact.setManual(manual);
             contact.setLastSyncedPhoto(contact.getRelated().getPhoto());
-            contact.getRelated().setSynced(true);
         }
     }
 

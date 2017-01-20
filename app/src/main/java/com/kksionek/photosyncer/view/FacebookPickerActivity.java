@@ -50,7 +50,6 @@ public class FacebookPickerActivity extends AppCompatActivity {
         mTextView.setText(getString(R.string.activity_facebookpicker_text, contact.getName()));
 
         RealmResults<Friend> notSyncedFriends = mRealm.where(Friend.class)
-                .equalTo("mSynced", false)
                 .findAllSorted("mName", Sort.ASCENDING);
         mAdapter = new ContactsAdapter(this, notSyncedFriends, false);
         mAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
