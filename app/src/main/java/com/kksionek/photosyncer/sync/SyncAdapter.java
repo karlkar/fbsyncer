@@ -101,6 +101,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 .doOnNext(contacts -> {
                     if (Looper.myLooper() == null)
                         Looper.prepare();
+                    Log.d(TAG, "getAndRealmContacts: Found " + contacts.size() + " contacts");
                     Realm ioRealm = Realm.getDefaultInstance();
                     ioRealm.beginTransaction();
 
@@ -118,6 +119,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                                 .equalTo("mId", newContact.getId())
                                 .findFirst();
                         if (preUpdateContact != null) {
+                            newContact.setLastSyncedPhoto(preUpdateContact.getLastSyncedPhoto());
                             newContact.setRelated(preUpdateContact.getRelated());
                             newContact.setManual(preUpdateContact.isManual());
                         }
@@ -403,18 +405,27 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void syncToRelated(List<Callable<Void>> callables, Realm realm, Contact contact, boolean manual) {
-        if (manual)
-            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
-        else
-            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
-        final Contact copiedContact = realm.copyFromRealm(contact);
-        callables.add(() -> {
-            setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
-            return null;
-        });
-        contact.setSynced(true);
-        contact.setManual(manual);
-        contact.getRelated().setSynced(true);
+        if (contact.getLastSyncedPhoto() != null
+                && contact.getLastSyncedPhoto().equals(contact.getRelated().getPhoto())) {
+            Log.d(TAG, "syncToRelated: No new photo. Synchronization skipped for [" + contact.getName() + "]");
+            contact.setSynced(true);
+            contact.setManual(manual);
+            contact.getRelated().setSynced(true);
+        } else {
+            if (manual)
+                Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
+            else
+                Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
+            final Contact copiedContact = realm.copyFromRealm(contact);
+            callables.add(() -> {
+                setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
+                return null;
+            });
+            contact.setSynced(true);
+            contact.setManual(manual);
+            contact.setLastSyncedPhoto(contact.getRelated().getPhoto());
+            contact.getRelated().setSynced(true);
+        }
     }
 
     private void setContactPhoto(@NonNull final String rawContactId, @NonNull final String photo) {
@@ -435,8 +446,15 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         Log.d(TAG, "setContactPhoto: id = " + rawContactId);
 
         int photoRow = -1;
-        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + rawContactId + " AND " + ContactsContract.Data.MIMETYPE + "=='" + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
-        Cursor cursor = getContext().getContentResolver().query(ContactsContract.Data.CONTENT_URI, new String[]{ContactsContract.Contacts.Data._ID}, where, null, null);
+        String where = ContactsContract.Data.RAW_CONTACT_ID + " = " + rawContactId
+                + " AND " + ContactsContract.Data.MIMETYPE + "=='"
+                + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
+        Cursor cursor = getContext().getContentResolver().query(
+                ContactsContract.Data.CONTENT_URI,
+                new String[] {ContactsContract.Contacts.Data._ID},
+                where,
+                null,
+                null);
         if (cursor.moveToFirst())
             photoRow = cursor.getInt(0);
         cursor.close();
