@@ -32,7 +32,7 @@ public class AccountUtils {
             ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
             ContentResolver.setSyncAutomatically(account, AccountUtils.CONTENT_AUTHORITY, true);
             ContentResolver.addPeriodicSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle(),
-                    24 * 60 * 60);
+                    7 * 24 * 60 * 60);
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx);
             sharedPreferences.edit().putBoolean(PREF_ACCOUNT_CREATED, true).apply();
             return account;
