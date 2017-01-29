@@ -9,7 +9,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 
 public class AccountUtils {
-    public static final String ACCOUNT_NAME = "NAZWA";
+    public static final String ACCOUNT_NAME = "Photo Syncer";
     public static final String ACCOUNT_TYPE = "com.kksionek.photosyncer";
 
     public static final String CONTENT_AUTHORITY = "com.kksionek.photosyncer";
