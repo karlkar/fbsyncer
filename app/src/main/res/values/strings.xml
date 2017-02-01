@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Photo Syncer</string>
     <string name="facebook_app_id">1741655866050751</string>
-    <string name="fb_login_protocol_scheme">fb1741655866050751</string>
     <string name="problem">Problem</string>
     <string name="sync_preference_saved">Sync preference saved.</string>
     <string name="problem_message">You must know that there are multiple facebook friends with this
@@ -24,7 +23,6 @@
     <string name="activity_main_facebook_permission_request_message">In order to sync your contact images I need an access to your Facebook account. I will use it only to obtain profile images of your friends. Please fill the fields and press the button to save Facebook credentials.</string>
     <string name="activity_main_button_grant_contacts_access">Grant access</string>
     <string name="activity_main_grant_contacts_access_message">In order to sync your contact images I need an access to your contacts. I will have to read them and modify if I will find a proper image. Please press the button to grant me access.</string>
-    <string name="activity_main_login_cancelled_message">To continue, you have to login to facebook.</string>
     <string name="menu_sync">Sync now</string>
     <string name="activity_tab_tab_auto">Auto</string>
     <string name="activity_main_whitelist_not_granted_toast">You forbid to use battery optimization. It doesn\'t allow me to work properly.</string>
@@ -33,4 +31,7 @@
     <string name="activity_main_facebook_password_hint">Facebook password</string>
     <string name="activity_main_facebook_login_hint">Facebook login</string>
     <string name="activity_main_login_failed_toast">Please provide proper login info</string>
+
+    <string name="interstitial_ad_unit_id">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="notification_synchronisation_done">Syncronisation is done! Say thanks by clicking this notification!</string>
 </resources>

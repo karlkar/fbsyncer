@@ -7,21 +7,26 @@ import android.content.Intent;
 import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.InterstitialAd;
+import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
-import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.model.SecurePreferences;
 import com.kksionek.photosyncer.sync.AccountUtils;
+
+import java.util.concurrent.TimeUnit;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -51,6 +56,7 @@ public class TabActivity extends AppCompatActivity {
         }
     });
     private Object mSyncObserverHandle;
+    private InterstitialAd mInterstitialAd;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,6 +100,46 @@ public class TabActivity extends AppCompatActivity {
             public void onTabReselected(TabLayout.Tab tab) {
             }
         });
+
+        //showAd();
+    }
+
+    private void showAd() {
+        long lastAd = PreferenceManager.getDefaultSharedPreferences(this)
+                .getLong("LAST_AD", 0);
+
+        if (lastAd == 0) {
+            lastAd = System.currentTimeMillis();
+            PreferenceManager.getDefaultSharedPreferences(this)
+                    .edit()
+                    .putLong("LAST_AD", lastAd)
+                    .apply();
+        }
+
+        long diff = System.currentTimeMillis() - lastAd;
+        long days = TimeUnit.DAYS.convert(diff, TimeUnit.DAYS);
+
+        if (days > 7 || getIntent().getBooleanExtra("INTENT_AD", false)) {
+            mInterstitialAd = new InterstitialAd(this);
+            mInterstitialAd.setAdUnitId(getString(R.string.interstitial_ad_unit_id));
+            mInterstitialAd.setAdListener(new AdListener() {
+                @Override
+                public void onAdLoaded() {
+                    mInterstitialAd.show();
+                }
+
+                @Override
+                public void onAdFailedToLoad(int errorCode) {
+                }
+
+                @Override
+                public void onAdClosed() {
+                }
+            });
+            AdRequest adRequest = new AdRequest.Builder()
+                    .setRequestAgent("android_studio:ad_template").build();
+            mInterstitialAd.loadAd(adRequest);
+        }
     }
 
     @Override

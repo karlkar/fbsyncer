@@ -1,24 +1,32 @@
 package com.kksionek.photosyncer.sync;
 
 import android.accounts.Account;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SyncResult;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
+import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
 import com.kksionek.photosyncer.model.RxContacts;
 import com.kksionek.photosyncer.model.SecurePreferences;
+import com.kksionek.photosyncer.view.TabActivity;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.Jsoup;
@@ -58,7 +66,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private static final String TAG = "SYNCADAPTER";
     private final ExecutorService mThreadPool = Executors.newFixedThreadPool(2);
 
-    public static final MediaType URLENCODED
+    private static final MediaType URLENCODED
             = MediaType.parse("application/x-www-form-urlencoded");
     private OkHttpClient mOkHttpClient;
 
@@ -67,13 +75,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     public SyncAdapter(Context context, boolean autoInitialize,
-            boolean allowParallelSyncs) {
+                       boolean allowParallelSyncs) {
         super(context, autoInitialize, allowParallelSyncs);
     }
 
     @Override
     public void onPerformSync(Account account, Bundle bundle, String s,
-            ContentProviderClient contentProviderClient, SyncResult syncResult) {
+                              ContentProviderClient contentProviderClient, SyncResult syncResult) {
         Log.d(TAG, "onPerformSync: START");
         Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
                 .subscribeOn(Schedulers.io())
@@ -85,7 +93,34 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             Log.e(TAG, "onPerformSync: Wrong login/password");
                             throwable.printStackTrace();
                         });
+        //sendNotification();
         Log.d(TAG, "onPerformSync: END");
+    }
+
+    private void sendNotification() {
+        Intent intent = new Intent(getContext(), TabActivity.class);
+        intent.putExtra("INTENT_AD", true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(getContext(), 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext());
+        builder.setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(getContext().getString(R.string.app_name))
+                .setContentText(getContext().getString(R.string.notification_synchronisation_done))
+                .setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_SOUND | Notification.FLAG_SHOW_LIGHTS)
+                .setLights(0xff00ff00, 300, 100)
+                .setContentIntent(pendingIntent);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
+            builder.setPriority(Notification.PRIORITY_DEFAULT);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+            builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+
+        NotificationManager notificationManager =
+                (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(0, builder.build());
     }
 
     @NonNull
@@ -110,7 +145,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             .findAll()
                             .asObservable()
                             .subscribeOn(Schedulers.immediate())
-                            .flatMap(allContacts -> Observable.from(allContacts))
+                            .flatMap(Observable::from)
                             .forEach(realmContact -> realmContact.setOld(true));
 
                     Contact preUpdateContact;
@@ -133,7 +168,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             .findAll()
                             .asObservable()
                             .subscribeOn(Schedulers.immediate())
-                            .subscribe(oldContacts -> oldContacts.deleteAllFromRealm());
+                            .subscribe(RealmResults::deleteAllFromRealm);
 
                     ioRealm.commitTransaction();
                     ioRealm.close();
@@ -176,18 +211,18 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             try {
                 reqBody = RequestBody.create(URLENCODED,
                         "email=" + URLEncoder.encode(prefs.getString("PREF_LOGIN"), "utf-8") + "&" +
-                        "pass=" + URLEncoder.encode(prefs.getString("PREF_PASSWORD"), "utf-8") + "&" +
-                        "lsd=" + lsd.val() + "&" +
-                        "version=1&" +
-                        "width=0&" +
-                        "pxr=0&" +
-                        "gps=0&" +
-                        "dimensions=0&" +
-                        "ajax=0&" +
-                        "m_ts=" + m_ts.val() + "&" +
-                        "login=Zaloguj+si%C4%99&" +
-                        "_fb_noscript=true&" +
-                        "li=" + li.val() + "");
+                                "pass=" + URLEncoder.encode(prefs.getString("PREF_PASSWORD"), "utf-8") + "&" +
+                                "lsd=" + lsd.val() + "&" +
+                                "version=1&" +
+                                "width=0&" +
+                                "pxr=0&" +
+                                "gps=0&" +
+                                "dimensions=0&" +
+                                "ajax=0&" +
+                                "m_ts=" + m_ts.val() + "&" +
+                                "login=Zaloguj+si%C4%99&" +
+                                "_fb_noscript=true&" +
+                                "li=" + li.val() + "");
             } catch (UnsupportedEncodingException e) {
                 singleEmitter.onError(e);
                 return;
@@ -222,6 +257,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private Observable<List<Friend>> getRxFriends() {
         if (mOkHttpClient == null) {
 
+//            HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
+//            httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+
             mOkHttpClient = new OkHttpClient.Builder()
                     .cookieJar(new CookieJar() {
                         private final HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
@@ -239,6 +277,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             return cookies != null ? cookies : new ArrayList<>();
                         }
                     })
+//                    .addInterceptor(httpLoggingInterceptor)
                     .build();
         }
         return fbLogin(mOkHttpClient, getContext())
@@ -309,11 +348,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             if (m.find()) {
                 name = StringEscapeUtils.unescapeHtml4(m.group(1));
             }
+            Log.d(TAG, "getRxFriend: Creating friend " + name + ", " + photoUrl);
             return new Friend(uid, name, photoUrl);
         });
     }
 
-    public Bitmap getBitmapFromURL(@NonNull String src) {
+    private Bitmap getBitmapFromURL(@NonNull String src) {
         try {
             Request req = new Request.Builder()
                     .url(src)
@@ -346,7 +386,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             .findAll()
                             .asObservable()
                             .subscribeOn(Schedulers.immediate())
-                            .flatMap(allContacts -> Observable.from(allContacts))
+                            .flatMap(Observable::from)
                             .forEach(realmContact -> realmContact.setOld(true));
 
                     for (Friend friend : friends)
@@ -449,7 +489,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 + ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE + "'";
         Cursor cursor = getContext().getContentResolver().query(
                 ContactsContract.Data.CONTENT_URI,
-                new String[] {ContactsContract.Contacts.Data._ID},
+                new String[]{ContactsContract.Contacts.Data._ID},
                 where,
                 null,
                 null);
