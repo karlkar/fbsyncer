@@ -28,9 +28,6 @@ public class FacebookPickerActivity extends AppCompatActivity {
 
     private String mContactId;
 
-    private TextView mTextView;
-    private RecyclerView mRecyclerView;
-    private ContactsAdapter mAdapter;
     private Realm mRealm;
 
     @Override
@@ -39,20 +36,20 @@ public class FacebookPickerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_fb_picker);
         mContactId = getIntent().getStringExtra(EXTRA_ID);
 
-        mTextView = (TextView) findViewById(R.id.infoText);
-        mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        TextView textView = (TextView) findViewById(R.id.infoText);
+        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
 
         mRealm = Realm.getDefaultInstance();
         Contact contact = mRealm.where(Contact.class)
                 .equalTo("mId", mContactId)
                 .findFirst();
 
-        mTextView.setText(getString(R.string.activity_facebookpicker_text, contact.getName()));
+        textView.setText(getString(R.string.activity_facebookpicker_text, contact.getName()));
 
         RealmResults<Friend> notSyncedFriends = mRealm.where(Friend.class)
                 .findAllSorted("mName", Sort.ASCENDING);
-        mAdapter = new ContactsAdapter(this, notSyncedFriends, false);
-        mAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
+        ContactsAdapter adapter = new ContactsAdapter<>(this, notSyncedFriends, false);
+        adapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
             @Override
             public void onItemClick(View view, Friend friend) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPickerActivity.this);
@@ -69,9 +66,9 @@ public class FacebookPickerActivity extends AppCompatActivity {
                 builder.create().show();
             }
         });
-        mRecyclerView.setAdapter(mAdapter);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        mRecyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
+        recyclerView.setAdapter(adapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
     }
 
     @Override

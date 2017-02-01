@@ -55,6 +55,7 @@ dependencies {
     compile "com.google.android.gms:play-services-ads:$playServicesVer"
     compile "com.google.firebase:firebase-core:$playServicesVer"
     releaseCompile "com.google.firebase:firebase-crash:$playServicesVer"
+//    compile 'com.squareup.okhttp3:logging-interceptor:3.5.0'
     testCompile 'junit:junit:4.12'
 }
 apply plugin: 'com.google.gms.google-services'

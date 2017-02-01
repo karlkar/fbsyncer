@@ -10,9 +10,7 @@ import android.widget.ImageView;
 
 import com.kksionek.photosyncer.R;
 
-import java.util.zip.Inflater;
-
-public class MenuItemSyncCtrl {
+class MenuItemSyncCtrl {
     private final Context mCtx;
     private final MenuItem mMenuItem;
     private Animation mRotationAnimation = null;

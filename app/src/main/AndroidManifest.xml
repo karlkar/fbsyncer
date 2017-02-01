@@ -12,10 +12,10 @@
 
     <application
         android:name=".SyncApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:supportsRtl="true"
+        android:supportsRtl="false"
         android:theme="@style/AppTheme">
         <meta-data
             android:name="com.facebook.sdk.ApplicationId"
@@ -48,6 +48,7 @@
 
         <service
             android:name=".sync.SyncService"
+            android:permission="android.permission.INTERNET"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.content.SyncAdapter" />

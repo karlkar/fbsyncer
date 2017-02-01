@@ -38,7 +38,7 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
     }
 
     private final Context mContext;
-    private OnItemClickListener mListener;
+    private OnItemClickListener<T> mListener;
 
     public ContactsAdapter(@NonNull Context context, @Nullable OrderedRealmCollection<T> data, boolean autoUpdate) {
         super(context, data, autoUpdate);
@@ -46,7 +46,7 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
         mListener = null;
     }
 
-    public void setOnItemClickListener(OnItemClickListener listener) {
+    public void setOnItemClickListener(OnItemClickListener<T> listener) {
         mListener = listener;
     }
 

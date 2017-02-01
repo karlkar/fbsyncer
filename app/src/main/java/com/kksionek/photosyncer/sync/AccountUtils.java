@@ -26,7 +26,7 @@ public class AccountUtils {
     }
 
     public static Account createAccount(Context ctx) {
-        AccountManager systemService = (AccountManager) ctx.getSystemService(ctx.ACCOUNT_SERVICE);
+        AccountManager systemService = (AccountManager) ctx.getSystemService(Context.ACCOUNT_SERVICE);
         Account account = AccountUtils.getAccount();
         if (systemService.addAccountExplicitly(account, null, null)) {
             ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
