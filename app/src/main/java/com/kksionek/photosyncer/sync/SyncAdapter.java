@@ -350,7 +350,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             if (m.find()) {
                 name = StringEscapeUtils.unescapeHtml4(m.group(1));
             }
-            Log.d(TAG, "getRxFriend: Creating friend " + name + ", " + photoUrl);
             return new Friend(uid, name, photoUrl);
         });
     }

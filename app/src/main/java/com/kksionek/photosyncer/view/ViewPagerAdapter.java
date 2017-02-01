@@ -67,13 +67,10 @@ class ViewPagerAdapter extends PagerAdapter {
                         .findAllSorted("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, notSyncedContacts, true);
-                contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                    @Override
-                    public void onItemClick(View view, Contact contact) {
-                        Intent facebookPicketIntent = new Intent(mParentActivity, FacebookPickerActivity.class);
-                        facebookPicketIntent.putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId());
-                        mParentActivity.startActivityForResult(facebookPicketIntent, TabActivity.REQUEST_FACEBOOK_PICKER);
-                    }
+                contactsAdapter.setOnItemClickListener((view1, contact) -> {
+                    Intent facebookPicketIntent = new Intent(mParentActivity, FacebookPickerActivity.class);
+                    facebookPicketIntent.putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId());
+                    mParentActivity.startActivityForResult(facebookPicketIntent, TabActivity.REQUEST_FACEBOOK_PICKER);
                 });
                 break;
             }
@@ -84,23 +81,20 @@ class ViewPagerAdapter extends PagerAdapter {
                         .findAllSorted("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, autoSyncedContacts, true);
-                contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                    @Override
-                    public void onItemClick(View view, Contact contact) {
-                        AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
-                        builder.setTitle(R.string.alert_cancel_auto_sync_title);
-                        builder.setMessage(R.string.alert_cancel_auto_sync_message);
-                        builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-                            mRealmUi.executeTransaction(realm -> {
-                                contact.setRelated(null);
-                                contact.setManual(true);
-                                contact.setSynced(true);
-                            });
-                            dialogInterface.dismiss();
+                contactsAdapter.setOnItemClickListener((v, contact) -> {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
+                    builder.setTitle(R.string.alert_cancel_auto_sync_title);
+                    builder.setMessage(R.string.alert_cancel_auto_sync_message);
+                    builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+                        mRealmUi.executeTransaction(realm -> {
+                            contact.setRelated(null);
+                            contact.setManual(true);
+                            contact.setSynced(true);
                         });
-                        builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
-                        builder.create().show();
-                    }
+                        dialogInterface.dismiss();
+                    });
+                    builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
+                    builder.create().show();
                 });
                 break;
             }
@@ -110,24 +104,21 @@ class ViewPagerAdapter extends PagerAdapter {
                         .findAllSorted("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, manualContacts, true);
-                contactsAdapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Contact>() {
-                    @Override
-                    public void onItemClick(View view, Contact contact) {
-                        AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
-                        builder.setTitle(R.string.alert_release_bond_title);
-                        builder.setMessage(R.string.alert_release_bond_message);
-                        //TODO: make another dialog/preference remembering if app should remove photo automatically
-                        builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-                            mRealmUi.executeTransaction(realm -> {
-                                contact.setRelated(null);
-                                contact.setManual(false);
-                                contact.setSynced(false);
-                            });
-                            dialogInterface.dismiss();
+                contactsAdapter.setOnItemClickListener((v, contact) -> {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(mParentActivity);
+                    builder.setTitle(R.string.alert_release_bond_title);
+                    builder.setMessage(R.string.alert_release_bond_message);
+                    //TODO: make another dialog/preference remembering if app should remove photo automatically
+                    builder.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+                        mRealmUi.executeTransaction(realm -> {
+                            contact.setRelated(null);
+                            contact.setManual(false);
+                            contact.setSynced(false);
                         });
-                        builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
-                        builder.create().show();
-                    }
+                        dialogInterface.dismiss();
+                    });
+                    builder.setNegativeButton(android.R.string.cancel, ((dialogInterface, i) -> dialogInterface.dismiss()));
+                    builder.create().show();
                 });
                 break;
             }

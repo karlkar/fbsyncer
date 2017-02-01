@@ -48,23 +48,20 @@ public class FacebookPickerActivity extends AppCompatActivity {
 
         RealmResults<Friend> notSyncedFriends = mRealm.where(Friend.class)
                 .findAllSorted("mName", Sort.ASCENDING);
-        ContactsAdapter adapter = new ContactsAdapter<>(this, notSyncedFriends, false);
-        adapter.setOnItemClickListener(new ContactsAdapter.OnItemClickListener<Friend>() {
-            @Override
-            public void onItemClick(View view, Friend friend) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPickerActivity.this);
-                builder.setTitle(R.string.alert_create_bond_title);
-                builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));
-                builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {
-                    Intent intent = new Intent();
-                    intent.putExtra(EXTRA_ID, mContactId);
-                    intent.putExtra(EXTRA_RESULT_ID, friend.getId());
-                    setResult(Activity.RESULT_OK, intent);
-                    finish();
-                });
-                builder.setNegativeButton(android.R.string.no, (dialogInterface, i) -> dialogInterface.dismiss());
-                builder.create().show();
-            }
+        ContactsAdapter<Friend> adapter = new ContactsAdapter<>(this, notSyncedFriends, false);
+        adapter.setOnItemClickListener((view, friend) -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(FacebookPickerActivity.this);
+            builder.setTitle(R.string.alert_create_bond_title);
+            builder.setMessage(getString(R.string.alert_create_bond_message, contact.getName(), friend.getName()));
+            builder.setPositiveButton(android.R.string.yes, (dialogInterface, i) -> {
+                Intent intent = new Intent();
+                intent.putExtra(EXTRA_ID, mContactId);
+                intent.putExtra(EXTRA_RESULT_ID, friend.getId());
+                setResult(Activity.RESULT_OK, intent);
+                finish();
+            });
+            builder.setNegativeButton(android.R.string.no, (dialogInterface, i) -> dialogInterface.dismiss());
+            builder.create().show();
         });
         recyclerView.setAdapter(adapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
