@@ -334,7 +334,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             response.close();
 
             int profPicIdx = responseStr.indexOf("profpic img");
-            responseStr = responseStr.substring(profPicIdx - 400, profPicIdx + 200);
+            if (profPicIdx == -1)
+                profPicIdx = responseStr.indexOf("class=\"w p\"");
+            responseStr = responseStr.substring(Math.max(0, profPicIdx - 400), Math.min(profPicIdx + 200, responseStr.length()));
             String photoUrl = null;
             Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
             Matcher m = p.matcher(responseStr);
