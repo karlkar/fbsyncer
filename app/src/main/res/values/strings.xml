@@ -32,6 +32,6 @@
     <string name="activity_main_facebook_login_hint">Facebook login</string>
     <string name="activity_main_login_failed_toast">Please provide proper login info</string>
 
-    <string name="interstitial_ad_unit_id">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="interstitial_ad_unit_id">ca-app-pub-9982327151344679/7540232548</string>
     <string name="notification_synchronisation_done">Syncronisation is done! Say thanks by clicking this notification!</string>
 </resources>

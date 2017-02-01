@@ -21,6 +21,7 @@ import android.support.annotation.NonNull;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 
+import com.google.firebase.crash.FirebaseCrash;
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
@@ -93,11 +94,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             Log.e(TAG, "onPerformSync: Wrong login/password");
                             throwable.printStackTrace();
                         });
-        //sendNotification();
+        showNotification();
         Log.d(TAG, "onPerformSync: END");
     }
 
-    private void sendNotification() {
+    private void showNotification() {
         Intent intent = new Intent(getContext(), TabActivity.class);
         intent.putExtra("INTENT_AD", true);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -336,6 +337,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             int profPicIdx = responseStr.indexOf("profpic img");
             if (profPicIdx == -1)
                 profPicIdx = responseStr.indexOf("class=\"w p\"");
+            if (profPicIdx == -1) {
+                FirebaseCrash.log("Cannot find picture for friend. Page = " + responseStr);
+                return null;
+            }
             responseStr = responseStr.substring(Math.max(0, profPicIdx - 400), Math.min(profPicIdx + 200, responseStr.length()));
             String photoUrl = null;
             Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");

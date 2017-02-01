@@ -36,6 +36,7 @@ public class TabActivity extends AppCompatActivity {
     public static final int REQUEST_FACEBOOK_PICKER = 4445;
 
     private static final String TAG = "TABACTIVITY";
+    public static final String PREF_LAST_AD = "LAST_AD";
 
     private Realm mRealmUi;
     private MenuItemSyncCtrl mMenuItemSyncCtrl = null;
@@ -101,30 +102,33 @@ public class TabActivity extends AppCompatActivity {
             }
         });
 
-        //showAd();
+        showAdIfNeeded();
     }
 
-    private void showAd() {
-        long lastAd = PreferenceManager.getDefaultSharedPreferences(this)
-                .getLong("LAST_AD", 0);
+    private void showAdIfNeeded() {
+        long lastAd = PreferenceManager.getDefaultSharedPreferences(this).getLong(PREF_LAST_AD, 0);
 
         if (lastAd == 0) {
             lastAd = System.currentTimeMillis();
             PreferenceManager.getDefaultSharedPreferences(this)
                     .edit()
-                    .putLong("LAST_AD", lastAd)
+                    .putLong(PREF_LAST_AD, lastAd)
                     .apply();
         }
 
         long diff = System.currentTimeMillis() - lastAd;
-        long days = TimeUnit.DAYS.convert(diff, TimeUnit.DAYS);
+        long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
 
-        if (days > 7 || getIntent().getBooleanExtra("INTENT_AD", false)) {
+        if (days >= 7 || getIntent().getBooleanExtra("INTENT_AD", false)) {
             mInterstitialAd = new InterstitialAd(this);
             mInterstitialAd.setAdUnitId(getString(R.string.interstitial_ad_unit_id));
             mInterstitialAd.setAdListener(new AdListener() {
                 @Override
                 public void onAdLoaded() {
+                    PreferenceManager.getDefaultSharedPreferences(TabActivity.this)
+                            .edit()
+                            .putLong(PREF_LAST_AD, System.currentTimeMillis())
+                            .apply();
                     mInterstitialAd.show();
                 }
 
@@ -137,7 +141,8 @@ public class TabActivity extends AppCompatActivity {
                 }
             });
             AdRequest adRequest = new AdRequest.Builder()
-                    .setRequestAgent("android_studio:ad_template").build();
+                    .addTestDevice("3795279CABB4FAC75E5F23A086CC9C9F")
+                    .build();
             mInterstitialAd.loadAd(adRequest);
         }
     }

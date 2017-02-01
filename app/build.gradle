@@ -41,22 +41,23 @@ android {
 
 def supportVer = "25.1.1"
 def playServicesVer = "10.0.1"
+def okhttpVer = "3.5.0"
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile "com.android.support:appcompat-v7:$supportVer"
     compile "com.android.support:design:$supportVer"
+    compile "com.google.firebase:firebase-core:$playServicesVer"
+    compile "com.google.firebase:firebase-ads:$playServicesVer"
+    compile "com.google.firebase:firebase-crash:$playServicesVer"
+    compile "com.squareup.okhttp3:okhttp:$okhttpVer"
+//    compile "com.squareup.okhttp3:logging-interceptor:$okhttpVer"
     compile 'com.squareup.picasso:picasso:2.5.2'
     compile 'io.realm:android-adapters:1.4.0'
     compile 'io.reactivex:rxjava:1.2.4'
     compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'com.squareup.okhttp3:okhttp:3.5.0'
     compile 'org.jsoup:jsoup:1.10.2'
     compile 'org.apache.commons:commons-lang3:3.5'
-    compile "com.google.android.gms:play-services-ads:$playServicesVer"
-    compile "com.google.firebase:firebase-core:$playServicesVer"
-    releaseCompile "com.google.firebase:firebase-crash:$playServicesVer"
-//    compile 'com.squareup.okhttp3:logging-interceptor:3.5.0'
     testCompile 'junit:junit:4.12'
 }
 apply plugin: 'com.google.gms.google-services'

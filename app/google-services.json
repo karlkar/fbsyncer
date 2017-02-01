@@ -15,14 +15,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "599648091571-7rlgr8dnjr7b81975t2lgn8n7tp9dubn.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.kksionek.photosyncer",
-            "certificate_hash": "1F9779474E7E9842D263D3F48A0E10675334682F"
-          }
-        },
-        {
           "client_id": "599648091571-6n8tc0ol6e12b63ls75lrkd4n6ap9gq8.apps.googleusercontent.com",
           "client_type": 3
         }
