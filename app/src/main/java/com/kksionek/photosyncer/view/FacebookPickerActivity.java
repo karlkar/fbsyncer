@@ -9,7 +9,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.view.View;
 import android.widget.TextView;
 
 import com.kksionek.photosyncer.data.Contact;
@@ -36,7 +35,7 @@ public class FacebookPickerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_fb_picker);
         mContactId = getIntent().getStringExtra(EXTRA_ID);
 
-        TextView textView = (TextView) findViewById(R.id.infoText);
+        TextView textView = (TextView) findViewById(R.id.infoTextName);
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
 
         mRealm = Realm.getDefaultInstance();
@@ -44,7 +43,7 @@ public class FacebookPickerActivity extends AppCompatActivity {
                 .equalTo("mId", mContactId)
                 .findFirst();
 
-        textView.setText(getString(R.string.activity_facebookpicker_text, contact.getName()));
+        textView.setText(contact.getName());
 
         RealmResults<Friend> notSyncedFriends = mRealm.where(Friend.class)
                 .findAllSorted("mName", Sort.ASCENDING);

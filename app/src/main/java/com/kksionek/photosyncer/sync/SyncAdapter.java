@@ -16,6 +16,7 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
 import android.support.v7.app.NotificationCompat;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -61,6 +63,8 @@ import okhttp3.Response;
 import rx.Observable;
 import rx.Single;
 import rx.schedulers.Schedulers;
+
+import static com.kksionek.photosyncer.view.TabActivity.PREF_LAST_AD;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
@@ -99,9 +103,24 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void showNotification() {
+        long lastAd = PreferenceManager.getDefaultSharedPreferences(getContext()).getLong(PREF_LAST_AD, 0);
+
+        if (lastAd == 0) {
+            lastAd = System.currentTimeMillis();
+            PreferenceManager.getDefaultSharedPreferences(getContext())
+                    .edit()
+                    .putLong(PREF_LAST_AD, lastAd)
+                    .apply();
+        }
+
+        long diff = System.currentTimeMillis() - lastAd;
+        long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
+
+        if (days < 7)
+            return;
+
         Intent intent = new Intent(getContext(), TabActivity.class);
         intent.putExtra("INTENT_AD", true);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(getContext(), 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext());

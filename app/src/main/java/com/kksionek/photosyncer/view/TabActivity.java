@@ -6,6 +6,7 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.SyncStatusObserver;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -159,8 +160,16 @@ public class TabActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_sync) {
-            ContentResolver.requestSync(AccountUtils.getAccount(), AccountUtils.CONTENT_AUTHORITY, new Bundle());
+            ContentResolver.requestSync(
+                    AccountUtils.getAccount(),
+                    AccountUtils.CONTENT_AUTHORITY,
+                    new Bundle());
             return true;
+        } else if (item.getItemId() == R.id.menu_privacy_policy) {
+            Intent browserIntent = new Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("http://novelstudio.pl/karol/photosyncer/privacy_policy.html"));
+            startActivity(browserIntent);
         }
         return super.onOptionsItemSelected(item);
     }

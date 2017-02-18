@@ -22,8 +22,8 @@ android {
         applicationId "com.kksionek.photosyncer"
         minSdkVersion 15
         targetSdkVersion 25
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.7"
         vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
