@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Person;
+import com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView;
 import com.squareup.picasso.Picasso;
 
 import io.realm.OrderedRealmCollection;
@@ -31,14 +32,22 @@ class ContactViewHolder extends RecyclerView.ViewHolder {
     }
 }
 
-public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecyclerViewAdapter<T, ContactViewHolder> {
+public class ContactsAdapter<T extends RealmObject & Person>
+        extends RealmRecyclerViewAdapter<T, ContactViewHolder>
+        implements FastScrollRecyclerView.SectionedAdapter {
 
     public interface OnItemClickListener<T> {
         void onItemClick(View view, T contact);
     }
 
     private final Context mContext;
+
     private OnItemClickListener<T> mListener;
+    private View.OnClickListener mOnClickListener = v -> {
+        if (mListener != null) {
+            mListener.onItemClick(v, (T) v.getTag());
+        }
+    };
 
     public ContactsAdapter(@NonNull Context context, @Nullable OrderedRealmCollection<T> data, boolean autoUpdate) {
         super(context, data, autoUpdate);
@@ -59,6 +68,12 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
     @Override
     public void onBindViewHolder(ContactViewHolder holder, int position) {
         T contact = getItem(position);
+        if (contact == null) {
+            holder.textView.setText("");
+            holder.imageView.setImageDrawable(null);
+            holder.parentView.setOnClickListener(null);
+            return;
+        }
 
         holder.textView.setText(contact.getName());
         Picasso.with(mContext)
@@ -66,9 +81,17 @@ public class ContactsAdapter<T extends RealmObject & Person> extends RealmRecycl
                 .placeholder(R.drawable.contact)
                 .into(holder.imageView);
 
-        holder.parentView.setOnClickListener(view -> {
-            if (mListener != null)
-                mListener.onItemClick(view, contact);
-        });
+        holder.parentView.setTag(contact);
+        holder.parentView.setOnClickListener(mOnClickListener);
+    }
+
+    @NonNull
+    @Override
+    public String getSectionName(int position) {
+        T item = getItem(position);
+        if (item != null)
+            return item.getName().substring(0, 1);
+        else
+            return "";
     }
 }
