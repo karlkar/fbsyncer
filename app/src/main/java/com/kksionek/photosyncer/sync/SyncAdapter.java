@@ -74,6 +74,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private static final MediaType URLENCODED
             = MediaType.parse("application/x-www-form-urlencoded");
     private OkHttpClient mOkHttpClient;
+    private Pattern mUidPattern = Pattern.compile("\\?uid=(.*?)&");
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -174,7 +175,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                                 .equalTo("mId", newContact.getId())
                                 .findFirst();
                         if (preUpdateContact != null) {
-                            newContact.setLastSyncedPhoto(preUpdateContact.getLastSyncedPhoto());
                             newContact.setRelated(preUpdateContact.getRelated());
                             newContact.setManual(preUpdateContact.isManual());
                         }
@@ -227,7 +227,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             Element m_ts = doc.select("input[name=m_ts]").first();
             Element li = doc.select("input[name=li]").first();
 
-            RequestBody reqBody = null;
+            RequestBody reqBody;
             try {
                 reqBody = RequestBody.create(URLENCODED,
                         "email=" + URLEncoder.encode(prefs.getString("PREF_LOGIN"), "utf-8") + "&" +
@@ -306,11 +306,13 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     int ppk = 0;
                     ArrayList<String> uids = new ArrayList<>();
                     do {
-                        Pattern uidPattern = Pattern.compile("\\?uid=(.*?)&");
-                        Matcher matcher = uidPattern.matcher(resp);
+                        Matcher matcher = mUidPattern.matcher(resp);
                         while (matcher.find()) {
                             String group = matcher.group(1);
                             uids.add(group);
+                        }
+                        if (uids.isEmpty()) {
+                            FirebaseCrash.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
                         }
 
                         ++ppk;
@@ -342,7 +344,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F%3Frefid%3D9%26mfl_act%3D1%23last_acted")
                     .build();
 
-            String responseStr = null;
+            String responseStr;
 
             Response response = mOkHttpClient.newCall(req).execute();
             if (response.isSuccessful())
@@ -470,25 +472,17 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void syncToRelated(List<Callable<Void>> callables, Realm realm, Contact contact, boolean manual) {
-        if (contact.getLastSyncedPhoto() != null
-                && contact.getLastSyncedPhoto().equals(contact.getRelated().getPhoto())) {
-            Log.d(TAG, "syncToRelated: No new photo. Synchronization skipped for [" + contact.getName() + "]");
-            contact.setSynced(true);
-            contact.setManual(manual);
-        } else {
-            if (manual)
-                Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
-            else
-                Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
-            final Contact copiedContact = realm.copyFromRealm(contact);
-            callables.add(() -> {
-                setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
-                return null;
-            });
-            contact.setSynced(true);
-            contact.setManual(manual);
-            contact.setLastSyncedPhoto(contact.getRelated().getPhoto());
-        }
+        if (manual)
+            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
+        else
+            Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
+        final Contact copiedContact = realm.copyFromRealm(contact);
+        callables.add(() -> {
+            setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
+            return null;
+        });
+        contact.setSynced(true);
+        contact.setManual(manual);
     }
 
     private void setContactPhoto(@NonNull final String rawContactId, @NonNull final String photo) {
@@ -518,9 +512,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 where,
                 null,
                 null);
-        if (cursor.moveToFirst())
-            photoRow = cursor.getInt(0);
-        cursor.close();
+        if (cursor != null) {
+            if (cursor.moveToFirst())
+                photoRow = cursor.getInt(0);
+            cursor.close();
+        }
 
         if (photoRow >= 0) {
             getContext().getContentResolver().update(
