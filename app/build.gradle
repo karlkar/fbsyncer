@@ -21,9 +21,10 @@ android {
         applicationId "com.kksionek.photosyncer"
         minSdkVersion 15
         targetSdkVersion 25
-        versionCode 8
-        versionName "1.7"
+        versionCode 10
+        versionName "1.10"
         vectorDrawables.useSupportLibrary = true
+        resConfigs "en"
     }
     buildTypes {
         release {
@@ -35,6 +36,14 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a'
+            universalApk false
+        }
     }
 }
 
