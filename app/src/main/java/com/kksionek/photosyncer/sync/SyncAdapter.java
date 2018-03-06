@@ -141,7 +141,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
         NotificationManager notificationManager =
                 (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.notify(0, builder.build());
+        if (notificationManager != null) {
+            notificationManager.notify(0, builder.build());
+        }
     }
 
     @NonNull
@@ -313,6 +315,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                         }
                         if (uids.isEmpty()) {
                             FirebaseCrash.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
+                            FirebaseCrash.report(new Exception("No friend uids were found in `resp`"));
                         }
 
                         ++ppk;
@@ -359,7 +362,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             if (profPicIdx == -1)
                 profPicIdx = responseStr.indexOf("class=\"w p\"");
             if (profPicIdx == -1) {
-                FirebaseCrash.log("Cannot find picture for friend. Page = " + responseStr);
+                profPicIdx = responseStr.indexOf("class=\"x p\"");
+            }
+            if (profPicIdx == -1) {
+                FirebaseCrash.log("Page content = " + responseStr);
+                FirebaseCrash.report(new Exception("Cannot find picture for friend"));
                 return null;
             }
             responseStr = responseStr.substring(Math.max(0, profPicIdx - 400), Math.min(profPicIdx + 200, responseStr.length()));

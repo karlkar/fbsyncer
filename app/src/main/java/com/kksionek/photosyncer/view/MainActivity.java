@@ -172,6 +172,7 @@ public class MainActivity extends AppCompatActivity {
             pm.getPackageInfo("com.samsung.android.sm", PackageManager.GET_ACTIVITIES);
             return true;
         } catch (PackageManager.NameNotFoundException e) {
+            // skip it
         }
         return false;
     }

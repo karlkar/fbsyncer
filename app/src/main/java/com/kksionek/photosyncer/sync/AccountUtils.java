@@ -28,7 +28,8 @@ public class AccountUtils {
     public static Account createAccount(Context ctx) {
         AccountManager systemService = (AccountManager) ctx.getSystemService(Context.ACCOUNT_SERVICE);
         Account account = AccountUtils.getAccount();
-        if (systemService.addAccountExplicitly(account, null, null)) {
+        if (systemService != null
+                && systemService.addAccountExplicitly(account, null, null)) {
             ContentResolver.setIsSyncable(account, AccountUtils.CONTENT_AUTHORITY, 1);
             ContentResolver.setSyncAutomatically(account, AccountUtils.CONTENT_AUTHORITY, true);
             ContentResolver.addPeriodicSync(account, AccountUtils.CONTENT_AUTHORITY, new Bundle(),
