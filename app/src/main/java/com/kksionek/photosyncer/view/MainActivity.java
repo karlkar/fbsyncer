@@ -53,12 +53,12 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mTextView = (TextView) findViewById(R.id.questionTextView);
-        mLoginProgress = (ProgressBar) findViewById(R.id.loginProgress);
-        mFbLoginForm = (LinearLayout) findViewById(R.id.fbLoginForm);
-        mFbLogin = (EditText) findViewById(R.id.fbLogin);
-        mFbPass = (EditText) findViewById(R.id.fbPass);
-        mQuestionBtn = (Button) findViewById(R.id.questionButton);
+        mTextView = findViewById(R.id.questionTextView);
+        mLoginProgress = findViewById(R.id.loginProgress);
+        mFbLoginForm = findViewById(R.id.fbLoginForm);
+        mFbLogin = findViewById(R.id.fbLogin);
+        mFbPass = findViewById(R.id.fbPass);
+        mQuestionBtn = findViewById(R.id.questionButton);
 
         mRealmUi = Realm.getDefaultInstance();
 

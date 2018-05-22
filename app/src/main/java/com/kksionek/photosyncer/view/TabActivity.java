@@ -80,10 +80,10 @@ public class TabActivity extends AppCompatActivity {
         mRealmUi = Realm.getDefaultInstance();
 
         ViewPagerAdapter adapter = new ViewPagerAdapter(this, mRealmUi);
-        mPager = (ViewPager) findViewById(R.id.pager);
+        mPager = findViewById(R.id.pager);
         mPager.setAdapter(adapter);
 
-        TabLayout tabLayout = (TabLayout) findViewById(R.id.tab_layout);
+        TabLayout tabLayout = findViewById(R.id.tab_layout);
         for (int i = 0; i < adapter.getCount(); ++i)
             tabLayout.addTab(tabLayout.newTab().setText(adapter.getPageTitle(i)));
         tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);

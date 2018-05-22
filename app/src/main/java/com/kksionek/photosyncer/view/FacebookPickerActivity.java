@@ -35,8 +35,8 @@ public class FacebookPickerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_fb_picker);
         mContactId = getIntent().getStringExtra(EXTRA_ID);
 
-        TextView textView = (TextView) findViewById(R.id.infoTextName);
-        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        TextView textView = findViewById(R.id.infoTextName);
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
 
         mRealm = Realm.getDefaultInstance();
         Contact contact = mRealm.where(Contact.class)

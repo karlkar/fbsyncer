@@ -17,12 +17,12 @@ class MenuItemSyncCtrl {
     private ImageView mRefreshImage = null;
     private boolean mAnimating = false;
 
-    public MenuItemSyncCtrl(@NonNull Context ctx, @NonNull MenuItem menuItem) {
+    MenuItemSyncCtrl(@NonNull Context ctx, @NonNull MenuItem menuItem) {
         mCtx = ctx;
         mMenuItem = menuItem;
     }
 
-    public void startAnimation() {
+    void startAnimation() {
         if (mAnimating)
             return;
         mAnimating = true;
@@ -39,7 +39,7 @@ class MenuItemSyncCtrl {
         }
     }
 
-    public void endAnimation() {
+    void endAnimation() {
         if (!mAnimating)
             return;
         mAnimating = false;

@@ -3,6 +3,7 @@ package com.kksionek.photosyncer.view;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.support.annotation.NonNull;
 import android.support.v4.view.PagerAdapter;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.DividerItemDecoration;
@@ -27,7 +28,7 @@ class ViewPagerAdapter extends PagerAdapter {
     private Activity mParentActivity;
     private Realm mRealmUi;
 
-    public ViewPagerAdapter(Activity parentActivity, Realm realmUi) {
+    ViewPagerAdapter(Activity parentActivity, Realm realmUi) {
         mParentActivity = parentActivity;
         mRealmUi = realmUi;
     }
@@ -38,18 +39,19 @@ class ViewPagerAdapter extends PagerAdapter {
     }
 
     @Override
-    public boolean isViewFromObject(View view, Object object) {
+    public boolean isViewFromObject(@NonNull View view, @NonNull Object object) {
         return view == object;
     }
 
+    @NonNull
     @Override
-    public Object instantiateItem(ViewGroup container, int position) {
+    public Object instantiateItem(@NonNull ViewGroup container, int position) {
         Context ctx = container.getContext();
         View view = LayoutInflater.from(ctx)
                 .inflate(R.layout.tab_not_synced, container, false);
         container.addView(view);
 
-        RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.recycler_view);
+        RecyclerView recyclerView = view.findViewById(R.id.recycler_view);
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(ctx);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.addItemDecoration(
@@ -129,7 +131,7 @@ class ViewPagerAdapter extends PagerAdapter {
     }
 
     @Override
-    public void destroyItem(ViewGroup container, int position, Object object) {
+    public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object) {
         container.removeView((View) object);
     }
 

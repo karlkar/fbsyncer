@@ -20,15 +20,15 @@ import io.realm.RealmObject;
 import io.realm.RealmRecyclerViewAdapter;
 
 class ContactViewHolder extends RecyclerView.ViewHolder {
-    public final View parentView;
-    public final ImageView imageView;
-    public final TextView textView;
+    final View parentView;
+    final ImageView imageView;
+    final TextView textView;
 
-    public ContactViewHolder(View itemView) {
+    ContactViewHolder(View itemView) {
         super(itemView);
         parentView = itemView;
-        imageView = (ImageView) itemView.findViewById(R.id.thumbnail);
-        textView = (TextView) itemView.findViewById(R.id.text);
+        imageView = itemView.findViewById(R.id.thumbnail);
+        textView = itemView.findViewById(R.id.text);
     }
 }
 
@@ -59,14 +59,15 @@ public class ContactsAdapter<T extends RealmObject & Person>
         mListener = listener;
     }
 
+    @NonNull
     @Override
-    public ContactViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ContactViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.row_friends, parent, false);
         return new ContactViewHolder(itemView);
     }
 
     @Override
-    public void onBindViewHolder(ContactViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ContactViewHolder holder, int position) {
         T contact = getItem(position);
         if (contact == null) {
             holder.textView.setText("");
@@ -89,9 +90,10 @@ public class ContactsAdapter<T extends RealmObject & Person>
     @Override
     public String getSectionName(int position) {
         T item = getItem(position);
-        if (item != null)
+        if (item != null) {
             return item.getName().substring(0, 1);
-        else
+        } else {
             return "";
+        }
     }
 }

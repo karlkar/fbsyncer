@@ -2,6 +2,7 @@ package com.kksionek.photosyncer.sync;
 
 import android.accounts.Account;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.AbstractThreadedSyncAdapter;
@@ -19,10 +20,10 @@ import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
-import android.support.v7.app.NotificationCompat;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-import com.google.firebase.crash.FirebaseCrash;
+import com.crashlytics.android.Crashlytics;
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
@@ -75,19 +76,23 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             = MediaType.parse("application/x-www-form-urlencoded");
     private OkHttpClient mOkHttpClient;
     private Pattern mUidPattern = Pattern.compile("\\?uid=(.*?)&");
+    private NotificationChannel mNotificationChannel;
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
     }
 
-    public SyncAdapter(Context context, boolean autoInitialize,
-                       boolean allowParallelSyncs) {
+    public SyncAdapter(Context context, boolean autoInitialize, boolean allowParallelSyncs) {
         super(context, autoInitialize, allowParallelSyncs);
     }
 
     @Override
-    public void onPerformSync(Account account, Bundle bundle, String s,
-                              ContentProviderClient contentProviderClient, SyncResult syncResult) {
+    public void onPerformSync(
+            Account account,
+            Bundle bundle,
+            String s,
+            ContentProviderClient contentProviderClient,
+            SyncResult syncResult) {
         Log.d(TAG, "onPerformSync: START");
         Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
                 .subscribeOn(Schedulers.io())
@@ -117,33 +122,55 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         long diff = System.currentTimeMillis() - lastAd;
         long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
 
-        if (days < 7)
+        if (days < 7) {
             return;
+        }
 
         Intent intent = new Intent(getContext(), TabActivity.class);
         intent.putExtra("INTENT_AD", true);
-        PendingIntent pendingIntent = PendingIntent.getActivity(getContext(), 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pendingIntent =
+                PendingIntent.getActivity(
+                        getContext(),
+                        1,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT);
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext());
+        NotificationManager notificationManager =
+                (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager == null) {
+            return;
+        }
+        String notificationChannelId;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (mNotificationChannel == null) {
+                mNotificationChannel = new NotificationChannel(
+                        "syncDone",
+                        "Photo Syncer",
+                        NotificationManager.IMPORTANCE_HIGH);
+                notificationManager.createNotificationChannel(mNotificationChannel);
+            }
+            notificationChannelId = mNotificationChannel.getId();
+        } else {
+            notificationChannelId = "";
+        }
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(
+                getContext(),
+                notificationChannelId);
         builder.setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(getContext().getString(R.string.app_name))
                 .setContentText(getContext().getString(R.string.notification_synchronisation_done))
                 .setAutoCancel(true)
                 .setDefaults(Notification.DEFAULT_SOUND | Notification.FLAG_SHOW_LIGHTS)
                 .setLights(0xff00ff00, 300, 100)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(getContext().getString(R.string.notification_synchronisation_done)))
                 .setContentIntent(pendingIntent);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN)
-            builder.setPriority(Notification.PRIORITY_DEFAULT);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setVisibility(Notification.VISIBILITY_PUBLIC);
-
-        NotificationManager notificationManager =
-                (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        if (notificationManager != null) {
-            notificationManager.notify(0, builder.build());
         }
+        notificationManager.notify(0, builder.build());
     }
 
     @NonNull
@@ -211,8 +238,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             String responseStr = null;
             try {
                 Response response = okHttpClient.newCall(req).execute();
-                if (response.isSuccessful())
+                if (response.isSuccessful()) {
                     responseStr = response.body().string();
+                }
                 response.close();
             } catch (IOException e) {
                 singleEmitter.onError(e);
@@ -256,8 +284,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
             try {
                 Response response = okHttpClient.newCall(req).execute();
-                if (response.isSuccessful())
+                if (response.isSuccessful()) {
                     responseStr = response.body().string();
+                }
                 response.close();
             } catch (IOException e) {
                 singleEmitter.onError(e);
@@ -314,8 +343,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             uids.add(group);
                         }
                         if (uids.isEmpty()) {
-                            FirebaseCrash.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
-                            FirebaseCrash.report(new Exception("No friend uids were found in `resp`"));
+                            Crashlytics.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
+                            Crashlytics.logException(new Exception("No friend uids were found in `resp`"));
                         }
 
                         ++ppk;
@@ -350,9 +379,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             String responseStr;
 
             Response response = mOkHttpClient.newCall(req).execute();
-            if (response.isSuccessful())
+            if (response.isSuccessful()) {
                 responseStr = response.body().string();
-            else {
+            } else {
                 response.close();
                 return null;
             }
@@ -365,8 +394,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 profPicIdx = responseStr.indexOf("class=\"x p\"");
             }
             if (profPicIdx == -1) {
-                FirebaseCrash.log("Page content = " + responseStr);
-                FirebaseCrash.report(new Exception("Cannot find picture for friend"));
+                Crashlytics.log("Page content = " + responseStr);
+                Crashlytics.logException(new Exception("Cannot find picture for friend"));
                 return null;
             }
             responseStr = responseStr.substring(Math.max(0, profPicIdx - 400), Math.min(profPicIdx + 200, responseStr.length()));
