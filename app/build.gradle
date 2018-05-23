@@ -21,8 +21,8 @@ android {
         applicationId "com.kksionek.photosyncer"
         minSdkVersion 15
         targetSdkVersion 27
-        versionCode 12
-        versionName "1.12"
+        versionCode 13
+        versionName "1.13"
         vectorDrawables.useSupportLibrary = true
         resConfigs "en"
     }
@@ -58,8 +58,8 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.simplecityapps:recyclerview-fastscroll:1.0.16'
     implementation "com.android.support:appcompat-v7:$supportVer"
-    implementation "com.android.support:customtabs:$supportVer" // to fix issue
-    implementation "com.android.support:design:$supportVer"
+    implementation "com.android.support:customtabs:$supportVer" // to fix build error
+    implementation "com.android.support:design:$supportVer" // to fix build error
     implementation "com.google.firebase:firebase-core:$playServicesVer"
     implementation "com.google.firebase:firebase-ads:15.0.1"
     implementation 'com.crashlytics.sdk.android:crashlytics:2.9.2'

@@ -120,7 +120,7 @@ public class TabActivity extends AppCompatActivity {
         long diff = System.currentTimeMillis() - lastAd;
         long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
 
-        if (days >= 7 || getIntent().getBooleanExtra("INTENT_AD", false)) {
+        if (days >= 6 || getIntent().getBooleanExtra("INTENT_AD", false)) {
             mInterstitialAd = new InterstitialAd(this);
             mInterstitialAd.setAdUnitId(getString(R.string.interstitial_ad_unit_id));
             mInterstitialAd.setAdListener(new AdListener() {
@@ -143,6 +143,7 @@ public class TabActivity extends AppCompatActivity {
             });
             AdRequest adRequest = new AdRequest.Builder()
                     .addTestDevice("3795279CABB4FAC75E5F23A086CC9C9F")
+                    .addTestDevice("45A79A696E1AC8ED37D8BDFC355D7360") // S9+
                     .build();
             mInterstitialAd.loadAd(adRequest);
         }

@@ -63,6 +63,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import rx.Observable;
 import rx.Single;
+import rx.exceptions.Exceptions;
 import rx.schedulers.Schedulers;
 
 import static com.kksionek.photosyncer.view.TabActivity.PREF_LAST_AD;
@@ -101,8 +102,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 .subscribe(
                         o -> performSync(),
                         throwable -> {
-                            Log.e(TAG, "onPerformSync: Wrong login/password");
-                            throwable.printStackTrace();
+                            Log.e(TAG, "onPerformSync: Error", throwable);
                         });
         showNotification();
         Log.d(TAG, "onPerformSync: END");
@@ -122,11 +122,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         long diff = System.currentTimeMillis() - lastAd;
         long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
 
-        if (days < 7) {
+        if (days < 6) {
             return;
         }
 
         Intent intent = new Intent(getContext(), TabActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         intent.putExtra("INTENT_AD", true);
         PendingIntent pendingIntent =
                 PendingIntent.getActivity(
@@ -184,8 +185,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private Observable<List<Contact>> getAndRealmContacts() {
         return getContactsRx()
                 .doOnNext(contacts -> {
-                    if (Looper.myLooper() == null)
+                    if (Looper.myLooper() == null) {
                         Looper.prepare();
+                    }
                     Log.d(TAG, "getAndRealmContacts: Found " + contacts.size() + " contacts");
                     Realm ioRealm = Realm.getDefaultInstance();
                     ioRealm.beginTransaction();
@@ -228,8 +230,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         return Single.fromEmitter(singleEmitter -> {
             SecurePreferences prefs = new SecurePreferences(context, "tmp", "NoTifiCationHandLer", true);
             if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
-                    && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty()))
+                    && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty())) {
                 singleEmitter.onError(new Exception("Login and/or password not set"));
+            }
 
             Request req = new Request.Builder()
                     .url("https://m.facebook.com/login.php?next=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&refsrc=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F&_rdr")
@@ -301,6 +304,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 prefs.clear();
                 singleEmitter.onError(new Exception("Wrong login and/or password"));
             }
+            if (responseStr.contains("Please try again later")) {
+                Log.e(TAG, "fbLogin: Too often");
+                singleEmitter.onError(new Exception("You are trying too often"));
+            }
             singleEmitter.onSuccess(responseStr);
         });
     }
@@ -353,8 +360,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                                 .build();
                         try {
                             Response response = mOkHttpClient.newCall(req).execute();
-                            if (response.isSuccessful())
+                            if (response.isSuccessful()) {
                                 resp = response.body().string();
+                            }
                             response.close();
                         } catch (IOException e) {
                             return Observable.error(e);
@@ -375,45 +383,53 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             Request req = new Request.Builder()
                     .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F%3Frefid%3D9%26mfl_act%3D1%23last_acted")
                     .build();
+            return mOkHttpClient.newCall(req).execute();
+        })
+                .filter(Response::isSuccessful)
+                .map(response -> {
+                    try {
+                        String body = response.body().string();
+                        response.close();
+                        return body;
+                    } catch (IOException e) {
+                        Log.e(TAG, "Failed", e);
+                        throw Exceptions.propagate(e);
+                    }
+                }).map(responseStr -> {
+                    int profPicIdx = responseStr.indexOf("profpic img");
+                    if (profPicIdx == -1) {
+                        profPicIdx = responseStr.indexOf("class=\"w p\"");
+                    }
+                    if (profPicIdx == -1) {
+                        profPicIdx = responseStr.indexOf("class=\"x p\"");
+                    }
+                    if (profPicIdx == -1) {
+                        profPicIdx = responseStr.indexOf("class=\"y q\"");
+                    }
+                    if (profPicIdx == -1) {
+                        Crashlytics.log("Uid = '" + uid + "'. Page content = " + responseStr);
+                        Crashlytics.logException(new Exception("Cannot find picture for friend"));
+                        return null;
+                    }
+                    return responseStr.substring(
+                            Math.max(0, profPicIdx - 400),
+                            Math.min(profPicIdx + 200, responseStr.length()));
+                }).map(responseStr -> {
+                    String photoUrl = null;
+                    Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
+                    Matcher m = p.matcher(responseStr);
+                    if (m.find()) {
+                        photoUrl = m.group(1).replace("&amp;", "&");
+                    }
 
-            String responseStr;
-
-            Response response = mOkHttpClient.newCall(req).execute();
-            if (response.isSuccessful()) {
-                responseStr = response.body().string();
-            } else {
-                response.close();
-                return null;
-            }
-            response.close();
-
-            int profPicIdx = responseStr.indexOf("profpic img");
-            if (profPicIdx == -1)
-                profPicIdx = responseStr.indexOf("class=\"w p\"");
-            if (profPicIdx == -1) {
-                profPicIdx = responseStr.indexOf("class=\"x p\"");
-            }
-            if (profPicIdx == -1) {
-                Crashlytics.log("Page content = " + responseStr);
-                Crashlytics.logException(new Exception("Cannot find picture for friend"));
-                return null;
-            }
-            responseStr = responseStr.substring(Math.max(0, profPicIdx - 400), Math.min(profPicIdx + 200, responseStr.length()));
-            String photoUrl = null;
-            Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
-            Matcher m = p.matcher(responseStr);
-            if (m.find()) {
-                photoUrl = m.group(1).replace("&amp;", "&");
-            }
-
-            String name = null;
-            Pattern p2 = Pattern.compile("alt=\"(.+?)\"");
-            m = p2.matcher(responseStr);
-            if (m.find()) {
-                name = StringEscapeUtils.unescapeHtml4(m.group(1));
-            }
-            return new Friend(uid, name, photoUrl);
-        });
+                    String name = null;
+                    Pattern p2 = Pattern.compile("alt=\"(.+?)\"");
+                    m = p2.matcher(responseStr);
+                    if (m.find()) {
+                        name = StringEscapeUtils.unescapeHtml4(m.group(1));
+                    }
+                    return new Friend(uid, name, photoUrl);
+                });
     }
 
     private Bitmap getBitmapFromURL(@NonNull String src) {
@@ -439,8 +455,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     private Observable<List<Friend>> getAndRealmFriends() {
         return getRxFriends()
                 .doOnNext(friends -> {
-                    if (Looper.myLooper() == null)
+                    if (Looper.myLooper() == null) {
                         Looper.prepare();
+                    }
                     Realm ioRealm = Realm.getDefaultInstance();
                     ioRealm.beginTransaction();
 
@@ -508,10 +525,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void syncToRelated(List<Callable<Void>> callables, Realm realm, Contact contact, boolean manual) {
-        if (manual)
+        if (manual) {
             Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using manual settings.");
-        else
+        } else {
             Log.d(TAG, "syncToRelated: [" + contact.getName() + "] - syncing using auto settings.");
+        }
         final Contact copiedContact = realm.copyFromRealm(contact);
         callables.add(() -> {
             setContactPhoto(copiedContact.getId(), copiedContact.getRelated().getPhoto());
@@ -523,8 +541,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     private void setContactPhoto(@NonNull final String rawContactId, @NonNull final String photo) {
         Bitmap bitmap = getBitmapFromURL(photo);
-        if (bitmap == null)
+        if (bitmap == null) {
             return;
+        }
 
         ByteArrayOutputStream streamy = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, streamy);
