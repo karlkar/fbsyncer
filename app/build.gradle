@@ -21,8 +21,8 @@ android {
         applicationId "com.kksionek.photosyncer"
         minSdkVersion 15
         targetSdkVersion 27
-        versionCode 13
-        versionName "1.13"
+        versionCode 14
+        versionName "1.14"
         vectorDrawables.useSupportLibrary = true
         resConfigs "en"
     }
@@ -51,7 +51,6 @@ android {
 }
 
 def supportVer = "27.1.1"
-def playServicesVer = "15.0.2"
 def okhttpVer = "3.5.0"
 
 dependencies {
@@ -60,9 +59,9 @@ dependencies {
     implementation "com.android.support:appcompat-v7:$supportVer"
     implementation "com.android.support:customtabs:$supportVer" // to fix build error
     implementation "com.android.support:design:$supportVer" // to fix build error
-    implementation "com.google.firebase:firebase-core:$playServicesVer"
+    implementation "com.google.firebase:firebase-core:16.0.3"
     implementation "com.google.firebase:firebase-ads:15.0.1"
-    implementation 'com.crashlytics.sdk.android:crashlytics:2.9.2'
+    implementation 'com.crashlytics.sdk.android:crashlytics:2.9.5'
     implementation "com.squareup.okhttp3:okhttp:$okhttpVer"
 //    implementation "com.squareup.okhttp3:logging-interceptor:$okhttpVer"
     implementation 'com.squareup.picasso:picasso:2.5.2'

@@ -409,12 +409,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     if (profPicIdx == -1) {
                         Crashlytics.log("Uid = '" + uid + "'. Page content = " + responseStr);
                         Crashlytics.logException(new Exception("Cannot find picture for friend"));
-                        return null;
+                        return "";
                     }
                     return responseStr.substring(
                             Math.max(0, profPicIdx - 400),
                             Math.min(profPicIdx + 200, responseStr.length()));
-                }).map(responseStr -> {
+                })
+                .filter(url -> !url.isEmpty())
+                .map(responseStr -> {
                     String photoUrl = null;
                     Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
                     Matcher m = p.matcher(responseStr);
