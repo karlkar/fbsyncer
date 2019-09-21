@@ -1,9 +1,9 @@
 package com.kksionek.photosyncer.model;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,8 +40,6 @@ public class ContactsAdapter<T extends RealmObject & Person>
         void onItemClick(View view, T contact);
     }
 
-    private final Context mContext;
-
     private OnItemClickListener<T> mListener;
     private View.OnClickListener mOnClickListener = v -> {
         if (mListener != null) {
@@ -51,7 +49,6 @@ public class ContactsAdapter<T extends RealmObject & Person>
 
     public ContactsAdapter(@NonNull Context context, @Nullable OrderedRealmCollection<T> data, boolean autoUpdate) {
         super(context, data, autoUpdate);
-        mContext = context;
         mListener = null;
     }
 
@@ -77,7 +74,7 @@ public class ContactsAdapter<T extends RealmObject & Person>
         }
 
         holder.textView.setText(contact.getName());
-        Picasso.with(mContext)
+        Picasso.get()
                 .load(contact.getPhoto())
                 .placeholder(R.drawable.contact)
                 .into(holder.imageView);

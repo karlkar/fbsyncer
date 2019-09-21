@@ -4,13 +4,13 @@ import android.content.Context;
 import android.database.Cursor;
 import android.os.Build;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.kksionek.photosyncer.data.Contact;
 
 import java.util.ArrayList;
 
-import rx.Observable;
+import io.reactivex.Observable;
 
 public class RxContacts {
 
@@ -29,15 +29,16 @@ public class RxContacts {
     }
 
     public static Observable<Contact> fetch(@NonNull final Context context) {
-        return Observable.create((Observable.OnSubscribe<Contact>) subscriber -> {
+        return Observable.create( subscriber -> {
             Cursor cursor = context.getContentResolver().query(
                     ContactsContract.Contacts.CONTENT_URI,
                     PROJECTION,
                     null,
                     null,
                     ContactsContract.Contacts._ID);
-            if (cursor == null)
+            if (cursor == null) {
                 return;
+            }
 
             int idxId = cursor.getColumnIndex(PROJECTION[0]);
             int idxDisplayNamePrimary = cursor.getColumnIndex(PROJECTION[1]);
@@ -49,19 +50,21 @@ public class RxContacts {
             while (cursor.moveToNext()) {
                 id = cursor.getString(idxId);
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
-                        && ids.contains(id))
+                        && ids.contains(id)) {
                     continue;
+                }
 
                 displayName = cursor.getString(idxDisplayNamePrimary);
                 thumbnailPath = cursor.getString(idxThumbnail);
 
                 subscriber.onNext(new Contact(id, displayName, thumbnailPath));
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP)
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
                     ids.add(id);
+                }
             }
             cursor.close();
-            subscriber.onCompleted();
-        }).onBackpressureBuffer();
+            subscriber.onComplete();
+        });
     }
 
     private RxContacts() {

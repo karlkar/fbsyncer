@@ -19,11 +19,13 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+
 import com.crashlytics.android.Crashlytics;
+import com.kksionek.photosyncer.BuildConfig;
 import com.kksionek.photosyncer.R;
 import com.kksionek.photosyncer.data.Contact;
 import com.kksionek.photosyncer.data.Friend;
@@ -31,7 +33,7 @@ import com.kksionek.photosyncer.model.RxContacts;
 import com.kksionek.photosyncer.model.SecurePreferences;
 import com.kksionek.photosyncer.view.TabActivity;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -51,6 +53,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.reactivex.Flowable;
+import io.reactivex.Observable;
+import io.reactivex.Single;
+import io.reactivex.exceptions.Exceptions;
+import io.reactivex.schedulers.Schedulers;
 import io.realm.Realm;
 import io.realm.RealmResults;
 import okhttp3.Cookie;
@@ -61,10 +68,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import rx.Observable;
-import rx.Single;
-import rx.exceptions.Exceptions;
-import rx.schedulers.Schedulers;
 
 import static com.kksionek.photosyncer.view.TabActivity.PREF_LAST_AD;
 
@@ -95,10 +98,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             ContentProviderClient contentProviderClient,
             SyncResult syncResult) {
         Log.d(TAG, "onPerformSync: START");
-        Observable.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
+        Single.zip(getAndRealmContacts(), getAndRealmFriends(), (contacts, friends) -> 1)
                 .subscribeOn(Schedulers.io())
-                .observeOn(Schedulers.immediate())
-                .toBlocking()
+                .observeOn(Schedulers.trampoline())
                 .subscribe(
                         o -> performSync(),
                         throwable -> {
@@ -169,22 +171,22 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 .setContentIntent(pendingIntent);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         }
         notificationManager.notify(0, builder.build());
     }
 
     @NonNull
-    private Observable<List<Contact>> getContactsRx() {
+    private Single<List<Contact>> getContactsRx() {
         return RxContacts.fetch(getContext())
                 .subscribeOn(Schedulers.io())
                 .toList();
     }
 
     @NonNull
-    private Observable<List<Contact>> getAndRealmContacts() {
+    private Single<List<Contact>> getAndRealmContacts() {
         return getContactsRx()
-                .doOnNext(contacts -> {
+                .doOnSuccess(contacts -> {
                     if (Looper.myLooper() == null) {
                         Looper.prepare();
                     }
@@ -195,9 +197,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     // Prepare Realm database so it knows which contacts were updated
                     ioRealm.where(Contact.class)
                             .findAll()
-                            .asObservable()
-                            .subscribeOn(Schedulers.immediate())
-                            .flatMap(Observable::from)
+                            .asFlowable()
+                            .subscribeOn(Schedulers.trampoline())
+                            .flatMap(Flowable::fromIterable)
                             .forEach(realmContact -> realmContact.setOld(true));
 
                     Contact preUpdateContact;
@@ -217,8 +219,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     ioRealm.where(Contact.class)
                             .equalTo("mOld", true)
                             .findAll()
-                            .asObservable()
-                            .subscribeOn(Schedulers.immediate())
+                            .asFlowable()
+                            .subscribeOn(Schedulers.trampoline())
                             .subscribe(RealmResults::deleteAllFromRealm);
 
                     ioRealm.commitTransaction();
@@ -227,11 +229,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     public static Single<String> fbLogin(OkHttpClient okHttpClient, Context context) {
-        return Single.fromEmitter(singleEmitter -> {
+        return Single.fromPublisher(singlePublisher -> {
             SecurePreferences prefs = new SecurePreferences(context, "tmp", "NoTifiCationHandLer", true);
             if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN").isEmpty())
                     && (prefs.getString("PREF_PASSWORD") == null || prefs.getString("PREF_PASSWORD").isEmpty())) {
-                singleEmitter.onError(new Exception("Login and/or password not set"));
+                singlePublisher.onError(new Exception("Login and/or password not set"));
             }
 
             Request req = new Request.Builder()
@@ -246,12 +248,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 }
                 response.close();
             } catch (IOException e) {
-                singleEmitter.onError(e);
+                singlePublisher.onError(e);
                 return;
             }
 
             if (responseStr == null) {
-                singleEmitter.onError(new Exception("Response is null"));
+                singlePublisher.onError(new Exception("Response is null"));
                 return;
             }
 
@@ -262,7 +264,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
             RequestBody reqBody;
             try {
-                reqBody = RequestBody.create(URLENCODED,
+                reqBody = RequestBody.create(
                         "email=" + URLEncoder.encode(prefs.getString("PREF_LOGIN"), "utf-8") + "&" +
                                 "pass=" + URLEncoder.encode(prefs.getString("PREF_PASSWORD"), "utf-8") + "&" +
                                 "lsd=" + lsd.val() + "&" +
@@ -275,9 +277,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                                 "m_ts=" + m_ts.val() + "&" +
                                 "login=Zaloguj+si%C4%99&" +
                                 "_fb_noscript=true&" +
-                                "li=" + li.val() + "");
+                                "li=" + li.val() + "",
+                        URLENCODED);
             } catch (UnsupportedEncodingException e) {
-                singleEmitter.onError(e);
+                singlePublisher.onError(e);
                 return;
             }
             req = new Request.Builder()
@@ -292,27 +295,28 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 }
                 response.close();
             } catch (IOException e) {
-                singleEmitter.onError(e);
+                singlePublisher.onError(e);
                 return;
             }
             if (responseStr == null) {
-                singleEmitter.onError(new Exception("Response is null"));
+                singlePublisher.onError(new Exception("Response is null"));
                 return;
             }
             if (responseStr.contains("login_form")) {
                 Log.e(TAG, "fbLogin: Wrong login/password");
                 prefs.clear();
-                singleEmitter.onError(new Exception("Wrong login and/or password"));
+                singlePublisher.onError(new Exception("Wrong login and/or password"));
             }
             if (responseStr.contains("Please try again later")) {
                 Log.e(TAG, "fbLogin: Too often");
-                singleEmitter.onError(new Exception("You are trying too often"));
+                singlePublisher.onError(new Exception("You are trying too often"));
             }
-            singleEmitter.onSuccess(responseStr);
+            singlePublisher.onNext(responseStr);
+            singlePublisher.onComplete();
         });
     }
 
-    private Observable<List<Friend>> getRxFriends() {
+    private Single<List<Friend>> getRxFriends() {
         if (mOkHttpClient == null) {
 
 //            HttpLoggingInterceptor httpLoggingInterceptor = new HttpLoggingInterceptor();
@@ -340,7 +344,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         }
         return fbLogin(mOkHttpClient, getContext())
                 .subscribeOn(Schedulers.io())
-                .flatMapObservable(resp -> {
+                .map(resp -> {
                     int ppk = 0;
                     ArrayList<String> uids = new ArrayList<>();
                     do {
@@ -350,8 +354,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             uids.add(group);
                         }
                         if (uids.isEmpty()) {
-                            Crashlytics.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
-                            Crashlytics.logException(new Exception("No friend uids were found in `resp`"));
+                            if (!BuildConfig.DEBUG) {
+                                Crashlytics.log("[" + ppk + "] No friend uids were found in `resp` = " + resp);
+                                Crashlytics.logException(new Exception("No friend uids were found in `resp`"));
+                            }
                         }
 
                         ++ppk;
@@ -365,26 +371,24 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             }
                             response.close();
                         } catch (IOException e) {
-                            return Observable.error(e);
+                            throw Exceptions.propagate(e);
                         }
                     } while (resp.contains("?uid="));
                     Log.d(TAG, "getRxFriends: Found " + uids.size() + " friends.");
-                    return Observable.from(uids);
+                    return uids;
                 })
-                .flatMap(s -> Observable.just(s)
-                        .subscribeOn(Schedulers.io())
-                        .flatMap(this::getRxFriend), 1)
-                .filter(friend -> friend != null)
+                .flatMapObservable(Observable::fromIterable)
+                .flatMap(it -> getRxFriend(it).toObservable())
                 .toList();
     }
 
-    private Observable<Friend> getRxFriend(@NonNull String uid) {
-        return Observable.fromCallable(() -> {
+    private Single<Friend> getRxFriend(@NonNull String uid) {
+        return Single.fromCallable(() -> {
             Request req = new Request.Builder()
                     .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=" + uid + "&redirectURI=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F%3Frefid%3D9%26mfl_act%3D1%23last_acted")
                     .build();
             return mOkHttpClient.newCall(req).execute();
-        })
+        }).toObservable()
                 .filter(Response::isSuccessful)
                 .map(response -> {
                     try {
@@ -407,8 +411,10 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                         profPicIdx = responseStr.indexOf("class=\"y q\"");
                     }
                     if (profPicIdx == -1) {
-                        Crashlytics.log("Uid = '" + uid + "'. Page content = " + responseStr);
-                        Crashlytics.logException(new Exception("Cannot find picture for friend"));
+                        if (!BuildConfig.DEBUG) {
+                            Crashlytics.log("Uid = '" + uid + "'. Page content = " + responseStr);
+                            Crashlytics.logException(new Exception("Cannot find picture for friend"));
+                        }
                         return "";
                     }
                     return responseStr.substring(
@@ -416,6 +422,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                             Math.min(profPicIdx + 200, responseStr.length()));
                 })
                 .filter(url -> !url.isEmpty())
+                .firstOrError()
                 .map(responseStr -> {
                     String photoUrl = null;
                     Pattern p = Pattern.compile("src=\"(.+?_\\d\\d+?_.+?)\"");
@@ -454,9 +461,9 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     @NonNull
-    private Observable<List<Friend>> getAndRealmFriends() {
+    private Single<List<Friend>> getAndRealmFriends() {
         return getRxFriends()
-                .doOnNext(friends -> {
+                .doOnSuccess(friends -> {
                     if (Looper.myLooper() == null) {
                         Looper.prepare();
                     }
@@ -466,13 +473,14 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                     // Prepare Realm database so it knows which friends were updated
                     ioRealm.where(Friend.class)
                             .findAll()
-                            .asObservable()
-                            .subscribeOn(Schedulers.immediate())
-                            .flatMap(Observable::from)
+                            .asFlowable()
+                            .subscribeOn(Schedulers.trampoline())
+                            .flatMap(Flowable::fromIterable)
                             .forEach(realmContact -> realmContact.setOld(true));
 
-                    for (Friend friend : friends)
+                    for (Friend friend : friends) {
                         ioRealm.insertOrUpdate(friend);
+                    }
 
                     ioRealm.where(Friend.class)
                             .equalTo("mOld", true)

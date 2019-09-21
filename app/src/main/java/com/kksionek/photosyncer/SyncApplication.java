@@ -1,11 +1,11 @@
 package com.kksionek.photosyncer;
 
-import android.app.Application;
+import androidx.multidex.MultiDexApplication;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 
-public class SyncApplication extends Application {
+public class SyncApplication extends MultiDexApplication {
 
     @Override
     public void onCreate() {

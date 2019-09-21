@@ -3,12 +3,12 @@ package com.kksionek.photosyncer.view;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.support.annotation.NonNull;
-import android.support.v4.view.PagerAdapter;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.DividerItemDecoration;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -66,7 +66,8 @@ class ViewPagerAdapter extends PagerAdapter {
                 RealmResults<Contact> notSyncedContacts = mRealmUi.where(Contact.class)
                         .isNull("mRelated")
                         .equalTo("mManual", false)
-                        .findAllSorted("mName", Sort.ASCENDING);
+                        .findAll()
+                        .sort("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, notSyncedContacts, true);
                 contactsAdapter.setOnItemClickListener((view1, contact) -> {
@@ -80,7 +81,8 @@ class ViewPagerAdapter extends PagerAdapter {
                 RealmResults<Contact> autoSyncedContacts = mRealmUi.where(Contact.class)
                         .isNotNull("mRelated")
                         .equalTo("mManual", false)
-                        .findAllSorted("mName", Sort.ASCENDING);
+                        .findAll()
+                        .sort("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, autoSyncedContacts, true);
                 contactsAdapter.setOnItemClickListener((v, contact) -> {
@@ -103,7 +105,8 @@ class ViewPagerAdapter extends PagerAdapter {
             case 2: {
                 RealmResults<Contact> manualContacts = mRealmUi.where(Contact.class)
                         .equalTo("mManual", true)
-                        .findAllSorted("mName", Sort.ASCENDING);
+                        .findAll()
+                        .sort("mName", Sort.ASCENDING);
 
                 contactsAdapter = new ContactsAdapter<>(mParentActivity, manualContacts, true);
                 contactsAdapter.setOnItemClickListener((v, contact) -> {

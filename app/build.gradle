@@ -3,34 +3,40 @@ apply plugin: 'realm-android'
 apply plugin: 'io.fabric'
 
 // Load keystore
-def keystorePropertiesFile = file("../../keystore.properties")
-def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+//def keystorePropertiesFile = file("../../keystore.properties")
+//def keystoreProperties = new Properties()
+//keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 android {
-    signingConfigs {
-        release {
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-        }
-    }
-    compileSdkVersion 27
+//    signingConfigs {
+//        release {
+//            storeFile file(keystoreProperties['storeFile'])
+//            storePassword keystoreProperties['storePassword']
+//            keyAlias keystoreProperties['keyAlias']
+//            keyPassword keystoreProperties['keyPassword']
+//        }
+//    }
+    compileSdkVersion 28
     defaultConfig {
         applicationId "com.kksionek.photosyncer"
-        minSdkVersion 15
-        targetSdkVersion 27
+        minSdkVersion 16
+        targetSdkVersion 28
         versionCode 14
         versionName "1.14"
         vectorDrawables.useSupportLibrary = true
         resConfigs "en"
+        multiDexEnabled true
     }
     buildTypes {
+        debug {
+            ext.enableCrashlytics = false
+            manifestPlaceholders = [enableCrashReporting:"false"]
+        }
         release {
+            manifestPlaceholders = [enableCrashReporting:"true"]
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+//            signingConfig signingConfigs.release
         }
     }
     lintOptions {
@@ -50,26 +56,24 @@ android {
     }
 }
 
-def supportVer = "27.1.1"
-def okhttpVer = "3.5.0"
-
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.simplecityapps:recyclerview-fastscroll:1.0.16'
-    implementation "com.android.support:appcompat-v7:$supportVer"
-    implementation "com.android.support:customtabs:$supportVer" // to fix build error
-    implementation "com.android.support:design:$supportVer" // to fix build error
-    implementation "com.google.firebase:firebase-core:16.0.3"
-    implementation "com.google.firebase:firebase-ads:15.0.1"
-    implementation 'com.crashlytics.sdk.android:crashlytics:2.9.5'
-    implementation "com.squareup.okhttp3:okhttp:$okhttpVer"
-//    implementation "com.squareup.okhttp3:logging-interceptor:$okhttpVer"
-    implementation 'com.squareup.picasso:picasso:2.5.2'
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation "com.google.firebase:firebase-core:17.2.0"
+    implementation "com.google.firebase:firebase-ads:18.2.0"
+    implementation 'com.crashlytics.sdk.android:crashlytics:2.10.1'
+    implementation "com.squareup.okhttp3:okhttp:4.2.0"
+//    implementation "com.squareup.okhttp3:logging-interceptor:4.2.0"
+    implementation 'com.squareup.picasso:picasso:2.71828'
     implementation 'io.realm:android-adapters:1.4.0'
-    implementation 'io.reactivex:rxjava:1.2.5'
-    implementation 'io.reactivex:rxandroid:1.2.1'
-    implementation 'org.jsoup:jsoup:1.10.2'
-    implementation 'org.apache.commons:commons-lang3:3.5'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.12'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+    implementation 'org.jsoup:jsoup:1.11.3'
+    implementation 'org.apache.commons:commons-text:1.8'
+    implementation 'com.google.android.material:material:1.0.0'
+    implementation 'androidx.multidex:multidex:2.0.1'
+
     testImplementation 'junit:junit:4.12'
 }
 apply plugin: 'com.google.gms.google-services'

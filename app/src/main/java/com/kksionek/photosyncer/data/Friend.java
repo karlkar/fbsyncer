@@ -1,6 +1,6 @@
 package com.kksionek.photosyncer.data;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;

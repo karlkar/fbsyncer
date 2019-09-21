@@ -1,6 +1,6 @@
 package com.kksionek.photosyncer.data;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 public interface Person {
     String getId();
