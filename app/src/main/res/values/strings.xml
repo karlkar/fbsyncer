@@ -19,7 +19,7 @@
     <string name="activity_tab_tab_manual">Manual</string>
     <string name="activity_main_permission_rejected_message">You didn\'t grant me full access to your contacts. I cannot sync them.</string>
     <string name="activity_main_button_sync">Sync</string>
-    <string name="activity_main_prerequisites_fulfilled_message">All prerequirements are fulfilled - I have access to your contacts and you\'re logged in to Facebook account. We can start the process now!</string>
+    <string name="activity_main_prerequisites_fulfilled_message">All prerequisites are fulfilled - I have access to your contacts and you\'re logged in to Facebook account. We can start the process now!</string>
     <string name="activity_main_button_login_facebook">Login to facebook</string>
     <string name="activity_main_facebook_permission_request_message">In order to sync your contact images I need an access to your Facebook account. I will use it only to obtain profile images of your friends. Please fill the fields and press the button to save Facebook credentials.</string>
     <string name="activity_main_button_grant_contacts_access">Grant access</string>
@@ -34,6 +34,6 @@
     <string name="activity_main_login_failed_toast">Please provide proper login info</string>
 
     <string name="interstitial_ad_unit_id">ca-app-pub-9982327151344679/7540232548</string>
-    <string name="notification_synchronisation_done">Syncronisation is done! Say thanks by clicking this notification!</string>
+    <string name="notification_synchronisation_done">Synchronisation is done! Say thanks by clicking this notification!</string>
     <string name="menu_privacy_policy">Privacy policy</string>
 </resources>
