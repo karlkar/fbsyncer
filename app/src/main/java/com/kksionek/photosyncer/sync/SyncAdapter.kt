@@ -543,7 +543,7 @@ class SyncAdapter @JvmOverloads constructor(
                     val loginEncoded = URLEncoder.encode(login, "utf-8")
                     val passEncoded = URLEncoder.encode(pass, "utf-8")
                     reqBody =
-                        ("email=$loginEncoded&pass=$passEncoded&lsd=$lsd&version=1&width=0&pxr=0&gps=0&dimensions=0&ajax=0&m_ts=$mTs&login=Zaloguj+si%C4%99&_fb_noscript=true&li=$li&jazoest=$jazoest&try_number=0&unrecognized_tries=0&m_sess=").toRequestBody(
+                        ("email=$loginEncoded&pass=$passEncoded&login=Log%20In&lsd=$lsd&m_ts=$mTs&li=$li&jazoest=$jazoest&try_number=0&unrecognized_tries=0&").toRequestBody(
                             URLENCODED
                         )
                 } catch (e: UnsupportedEncodingException) {

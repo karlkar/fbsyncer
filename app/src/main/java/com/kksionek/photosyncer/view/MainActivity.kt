@@ -24,7 +24,12 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import io.realm.Realm
 import kotlinx.android.synthetic.main.activity_main.*
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import java.util.ArrayList
+import java.util.HashMap
 
 class MainActivity : AppCompatActivity() {
     private lateinit var realmUi: Realm
@@ -93,7 +98,19 @@ class MainActivity : AppCompatActivity() {
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
                         prefs.put("PREF_LOGIN", login)
                         prefs.put("PREF_PASSWORD", pass)
-                        SyncAdapter.fbLogin(OkHttpClient(), baseContext)
+                        SyncAdapter.fbLogin(OkHttpClient.Builder()
+                            .cookieJar(object : CookieJar {
+                                private val cookieStore = HashMap<String, List<Cookie>>()
+
+                                override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                                    cookieStore[url.host] = cookies
+                                }
+
+                                override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                                    return cookieStore[url.host] ?: emptyList()
+                                }
+                            })
+                            .build(), baseContext)
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(
