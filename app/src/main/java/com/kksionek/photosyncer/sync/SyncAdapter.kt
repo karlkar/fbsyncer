@@ -5,12 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.AbstractThreadedSyncAdapter
-import android.content.ContentProviderClient
-import android.content.ContentValues
-import android.content.Context
-import android.content.Intent
-import android.content.SyncResult
+import android.content.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -22,24 +17,20 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.kksionek.photosyncer.BuildConfig
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.model.RxContacts
-import com.kksionek.photosyncer.repository.JetpackSecureStorage
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.view.TabActivity
 import com.kksionek.photosyncer.view.TabActivity.Companion.PREF_LAST_AD
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.Flowable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.exceptions.Exceptions
 import io.reactivex.schedulers.Schedulers
 import io.realm.Realm
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -51,41 +42,24 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.UnsupportedEncodingException
 import java.net.URLEncoder
-import java.util.ArrayList
-import java.util.HashMap
+import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
 
-class SyncAdapter @JvmOverloads constructor(
-    context: Context,
-    autoInitialize: Boolean,
-    allowParallelSyncs: Boolean = false
-) : AbstractThreadedSyncAdapter(context, autoInitialize, allowParallelSyncs) {
+class SyncAdapter @Inject constructor(
+    @ApplicationContext appContext: Context,
+    private val secureStorage: SecureStorage,
+    private val firebaseCrashlytics: FirebaseCrashlytics,
+    private val okHttpClient: OkHttpClient
+) : AbstractThreadedSyncAdapter(appContext, true, false) {
 
     private val threadPool = Executors.newFixedThreadPool(2)
 
-    private val secureStorage: SecureStorage = JetpackSecureStorage(context)
-    private val firebaseCrashlytics: FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
-
-    private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .cookieJar(object : CookieJar {
-                private val cookieStore = HashMap<String, List<Cookie>>()
-
-                override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                    if (cookies.size == 1) return
-                    cookieStore[url.host] = cookies
-                }
-
-                override fun loadForRequest(url: HttpUrl): List<Cookie> =
-                    cookieStore[url.host].orEmpty()
-            })
-            .build()
-    }
     private lateinit var notificationChannel: NotificationChannel
 
     private val contactsRx: Single<List<Contact>>

@@ -24,25 +24,26 @@ import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountUtils
+import dagger.hilt.android.AndroidEntryPoint
 import io.realm.Realm
 import kotlinx.android.synthetic.main.activity_tab.*
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class TabActivity : AppCompatActivity() {
 
     private lateinit var realmUi: Realm
     private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
-    private lateinit var secureStorage: SecureStorage
+
+    @Inject
+    lateinit var secureStorage: SecureStorage
 
     private val syncStatusObserver = { _: Int ->
         runOnUiThread {
             val account = AccountUtils.account
-            val syncActive = ContentResolver.isSyncActive(
-                account, AccountUtils.CONTENT_AUTHORITY
-            )
-            val syncPending = ContentResolver.isSyncPending(
-                account, AccountUtils.CONTENT_AUTHORITY
-            )
+            val syncActive = ContentResolver.isSyncActive(account, AccountUtils.CONTENT_AUTHORITY)
+            val syncPending = ContentResolver.isSyncPending(account, AccountUtils.CONTENT_AUTHORITY)
 
             //Log.d(TAG, "Event received: " + (syncActive || syncPending));
             if (syncActive || syncPending) {

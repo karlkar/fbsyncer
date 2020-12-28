@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
+apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'realm-android'
 apply plugin: 'com.google.firebase.crashlytics'
@@ -29,14 +30,24 @@ android {
         vectorDrawables.useSupportLibrary = true
         resConfigs "en"
         multiDexEnabled true
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += [
+                        "room.schemaLocation"  : "$projectDir/schemas".toString(),
+                        "room.incremental"     : "true",
+                        "room.expandProjection": "true"
+                ]
+            }
+        }
     }
     buildTypes {
         debug {
             ext.enableCrashlytics = false
-            manifestPlaceholders = [enableCrashReporting:"false"]
+            manifestPlaceholders = [enableCrashReporting: "false"]
         }
         release {
-            manifestPlaceholders = [enableCrashReporting:"true"]
+            manifestPlaceholders = [enableCrashReporting: "true"]
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 //            signingConfig signingConfigs.release
@@ -63,6 +74,8 @@ android {
 }
 
 dependencies {
+    def room_version = "2.2.6"
+
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.simplecityapps:recyclerview-fastscroll:1.0.16'
     implementation 'androidx.appcompat:appcompat:1.2.0'
@@ -83,6 +96,14 @@ dependencies {
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
+    implementation "com.google.dagger:hilt-android:2.29.1-alpha"
+    kapt "com.google.dagger:hilt-android-compiler:2.29.1-alpha"
+
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
+
     testImplementation 'junit:junit:4.13.1'
+    testImplementation "androidx.room:room-testing:$room_version"
 }
 apply plugin: 'com.google.gms.google-services'

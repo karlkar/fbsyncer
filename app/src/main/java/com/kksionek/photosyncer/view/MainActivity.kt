@@ -17,23 +17,27 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.kksionek.photosyncer.R
-import com.kksionek.photosyncer.repository.JetpackSecureStorage
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountUtils
 import com.kksionek.photosyncer.sync.SyncAdapter
+import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import io.realm.Realm
 import kotlinx.android.synthetic.main.activity_main.*
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import java.util.HashMap
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
     private lateinit var realmUi: Realm
-    private lateinit var secureStorage: SecureStorage
+
+    @Inject
+    lateinit var secureStorage: SecureStorage
+
+    @Inject
+    lateinit var okHttpClient: OkHttpClient
 
     private val isSmartManagerInstalled: Boolean
         get() = try {
@@ -48,7 +52,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         realmUi = Realm.getDefaultInstance()
-        secureStorage = JetpackSecureStorage(applicationContext)
 
         showPermissionRequestScreen()
     }
@@ -101,22 +104,7 @@ class MainActivity : AppCompatActivity() {
                         secureStorage.write("PREF_LOGIN", login)
                         secureStorage.write("PREF_PASSWORD", pass)
                         SyncAdapter.fbLogin(
-                            OkHttpClient.Builder()
-                                .cookieJar(object : CookieJar {
-                                    private val cookieStore = HashMap<String, List<Cookie>>()
-
-                                    override fun saveFromResponse(
-                                        url: HttpUrl,
-                                        cookies: List<Cookie>
-                                    ) {
-                                        cookieStore[url.host] = cookies
-                                    }
-
-                                    override fun loadForRequest(url: HttpUrl): List<Cookie> {
-                                        return cookieStore[url.host] ?: emptyList()
-                                    }
-                                })
-                                .build(),
+                            okHttpClient,
                             secureStorage
                         )
                             .subscribeOn(Schedulers.io())

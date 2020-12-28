@@ -4,15 +4,18 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SyncService : Service() {
 
-    private lateinit var syncAdapter: SyncAdapter
+    @Inject
+    lateinit var syncAdapter: SyncAdapter
 
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "Service created")
-        syncAdapter = SyncAdapter(applicationContext, true)
     }
 
     override fun onDestroy() {
@@ -23,8 +26,6 @@ class SyncService : Service() {
     override fun onBind(intent: Intent): IBinder? = syncAdapter.syncAdapterBinder
 
     companion object {
-
-        private val TAG = "SyncService"
+        private const val TAG = "SyncService"
     }
-
 }
