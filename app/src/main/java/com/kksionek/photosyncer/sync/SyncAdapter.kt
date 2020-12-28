@@ -20,7 +20,8 @@ import android.preference.PreferenceManager
 import android.provider.ContactsContract
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.crashlytics.android.Crashlytics
+import androidx.core.content.getSystemService
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kksionek.photosyncer.BuildConfig
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
@@ -33,7 +34,6 @@ import io.reactivex.Flowable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.exceptions.Exceptions
-import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
 import io.realm.Realm
 import okhttp3.Cookie
@@ -66,7 +66,22 @@ class SyncAdapter @JvmOverloads constructor(
 ) : AbstractThreadedSyncAdapter(context, autoInitialize, allowParallelSyncs) {
 
     private val threadPool = Executors.newFixedThreadPool(2)
-    private var okHttpClient: OkHttpClient? = null
+
+    private val okHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(object : CookieJar {
+                private val cookieStore = HashMap<String, List<Cookie>>()
+
+                override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                    if (cookies.size == 1) return
+                    cookieStore[url.host] = cookies
+                }
+
+                override fun loadForRequest(url: HttpUrl): List<Cookie> =
+                    cookieStore[url.host].orEmpty()
+            })
+            .build()
+    }
     private lateinit var notificationChannel: NotificationChannel
 
     private val contactsRx: Single<List<Contact>>
@@ -111,25 +126,6 @@ class SyncAdapter @JvmOverloads constructor(
 
     private val rxFriends: Single<List<Friend>>
         get() {
-            if (okHttpClient == null) {
-
-                okHttpClient = OkHttpClient.Builder()
-                    .cookieJar(object : CookieJar {
-                        private val cookieStore = HashMap<String, List<Cookie>>()
-
-                        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                            if (cookies.size == 1)
-                                return
-                            cookieStore[url.host] = cookies
-                        }
-
-                        override fun loadForRequest(url: HttpUrl): List<Cookie> {
-                            val cookies = cookieStore[url.host]
-                            return cookies ?: ArrayList()
-                        }
-                    })
-                    .build()
-            }
             return fbLogin(okHttpClient!!, context)
                 .subscribeOn(Schedulers.io())
                 .map { resp ->
@@ -144,8 +140,10 @@ class SyncAdapter @JvmOverloads constructor(
                         }
                         if (uids.isEmpty()) {
                             if (!BuildConfig.DEBUG) {
-                                Crashlytics.log("[$ppk] No friend uids were found in `resp` = $resp")
-                                Crashlytics.logException(Exception("No friend uids were found in `resp`"))
+                                FirebaseCrashlytics.getInstance()
+                                    .log("[$ppk] No friend uids were found in `resp` = $resp")
+                                FirebaseCrashlytics.getInstance()
+                                    .recordException(Exception("No friend uids were found in `resp`"))
                             }
                         }
 
@@ -167,7 +165,7 @@ class SyncAdapter @JvmOverloads constructor(
                     Log.d(TAG, "getRxFriends: Found " + uids.size + " friends.")
                     uids
                 }
-                .flatMapObservable<String> { Observable.fromIterable(it) }
+                .flatMapObservable { Observable.fromIterable(it) }
                 .flatMap { getRxFriend(it).toObservable() }
                 .toList()
         }
@@ -185,7 +183,7 @@ class SyncAdapter @JvmOverloads constructor(
                     .findAll()
                     .asFlowable()
                     .subscribeOn(Schedulers.trampoline())
-                    .flatMap<Friend> { Flowable.fromIterable(it) }
+                    .flatMap { Flowable.fromIterable(it) }
                     .forEach { realmContact -> realmContact.old = true }
 
                 friends.forEach {
@@ -210,7 +208,7 @@ class SyncAdapter @JvmOverloads constructor(
         Single.zip<List<Contact>, List<Friend>, Int>(
             andRealmContacts,
             andRealmFriends,
-            BiFunction { _, _ -> 1 }
+            { _, _ -> 1 }
         )
             .subscribeOn(Schedulers.io())
             .observeOn(Schedulers.trampoline())
@@ -239,9 +237,10 @@ class SyncAdapter @JvmOverloads constructor(
             return
         }
 
-        val intent = Intent(context, TabActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        intent.putExtra("INTENT_AD", true)
+        val intent = Intent(context, TabActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            putExtra("INTENT_AD", true)
+        }
         val pendingIntent = PendingIntent.getActivity(
             context,
             1,
@@ -249,8 +248,7 @@ class SyncAdapter @JvmOverloads constructor(
             PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager: NotificationManager? = context.getSystemService()
         val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (::notificationChannel.isInitialized) {
                 notificationChannel = NotificationChannel(
@@ -259,7 +257,7 @@ class SyncAdapter @JvmOverloads constructor(
                     NotificationManager.IMPORTANCE_HIGH
                 )
                 notificationChannel.enableLights(true)
-                notificationManager.createNotificationChannel(notificationChannel)
+                notificationManager?.createNotificationChannel(notificationChannel)
             }
             notificationChannel.id
         } else {
@@ -285,7 +283,7 @@ class SyncAdapter @JvmOverloads constructor(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         }
-        notificationManager.notify(0, builder.build())
+        notificationManager?.notify(0, builder.build())
     }
 
     private fun getRxFriend(uid: String): Single<Friend> {
@@ -296,7 +294,7 @@ class SyncAdapter @JvmOverloads constructor(
             okHttpClient!!.newCall(req).execute()
         }.toObservable()
             .filter { it.isSuccessful }
-            .map<String> { response ->
+            .map { response ->
                 try {
                     val body = response.body!!.string()
                     response.close()
@@ -318,8 +316,10 @@ class SyncAdapter @JvmOverloads constructor(
                 }
                 if (profPicIdx == -1) {
                     if (!BuildConfig.DEBUG) {
-                        Crashlytics.log("Uid = '$uid'. Page content = $responseStr")
-                        Crashlytics.logException(Exception("Cannot find picture for friend"))
+                        FirebaseCrashlytics.getInstance()
+                            .log("Uid = '$uid'. Page content = $responseStr")
+                        FirebaseCrashlytics.getInstance()
+                            .recordException(Exception("Cannot find picture for friend"))
                     }
                     return@map ""
                 }
@@ -384,8 +384,9 @@ class SyncAdapter @JvmOverloads constructor(
 
         for (contact in contacts) {
             if (contact.isManual) {
-                if (contact.related != null)
+                if (contact.related != null) {
                     syncToRelated(callables, realm, contact, true)
+                }
             } else {
                 val sameNameFriends = realm.where(Friend::class.java)
                     .equalTo("mName", contact.getName())
@@ -416,7 +417,6 @@ class SyncAdapter @JvmOverloads constructor(
         } catch (e: InterruptedException) {
             e.printStackTrace()
         }
-
     }
 
     private fun syncToRelated(

@@ -41,11 +41,10 @@ class AccountAuthenticatorService : Service() {
             options: Bundle
         ): Bundle {
             Log.i(TAG, "addAccount")
-            val result = Bundle()
-
-            result.putString(AccountManager.KEY_ACCOUNT_NAME, AccountUtils.ACCOUNT_NAME)
-            result.putString(AccountManager.KEY_ACCOUNT_TYPE, AccountUtils.ACCOUNT_TYPE)
-            return result
+            return Bundle().apply {
+                putString(AccountManager.KEY_ACCOUNT_NAME, AccountUtils.ACCOUNT_NAME)
+                putString(AccountManager.KEY_ACCOUNT_TYPE, AccountUtils.ACCOUNT_TYPE)
+            }
         }
 
         @Throws(NetworkErrorException::class)
@@ -74,11 +73,9 @@ class AccountAuthenticatorService : Service() {
             response: AccountAuthenticatorResponse,
             account: Account, authTokenType: String, options: Bundle
         ): Bundle = throw UnsupportedOperationException()
-
     }
 
     companion object {
-
         private val TAG = AccountAuthenticatorService::class.java.simpleName
     }
 }

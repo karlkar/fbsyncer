@@ -8,19 +8,11 @@ import io.reactivex.Single
 
 object RxContacts {
 
-    private val PROJECTION = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        arrayOf(
-            ContactsContract.Contacts.NAME_RAW_CONTACT_ID,
-            ContactsContract.Contacts.DISPLAY_NAME,
-            ContactsContract.Contacts.PHOTO_URI
-        )
-    } else {
-        arrayOf(
-            ContactsContract.Data.RAW_CONTACT_ID,
-            ContactsContract.Data.DISPLAY_NAME_PRIMARY,
-            ContactsContract.Data.PHOTO_THUMBNAIL_URI
-        )
-    }
+    private val PROJECTION = arrayOf(
+        ContactsContract.Contacts.NAME_RAW_CONTACT_ID,
+        ContactsContract.Contacts.DISPLAY_NAME,
+        ContactsContract.Contacts.PHOTO_URI
+    )
 
     fun fetch(context: Context) = Single.create<List<Contact>> { subscriber ->
         val cursor = context.contentResolver.query(
@@ -39,27 +31,14 @@ object RxContacts {
         val idxDisplayNamePrimary = cursor.getColumnIndex(PROJECTION[1])
         val idxThumbnail = cursor.getColumnIndex(PROJECTION[2])
 
-        var id: String
-        var displayName: String
-        var thumbnailPath: String
-        val ids = mutableListOf<String>()
-        val contacts = mutableListOf<Contact>()
-
-        while (cursor.moveToNext()) {
-            id = cursor.getString(idxId)
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP && id in ids) {
-                continue
+        val contacts = generateSequence { if (cursor.moveToNext()) cursor else null }
+            .map {
+                val id = cursor.getString(idxId)
+                val displayName = cursor.getString(idxDisplayNamePrimary)
+                val thumbnailPath = cursor.getString(idxThumbnail)
+                Contact(id, displayName, thumbnailPath)
             }
-
-            displayName = cursor.getString(idxDisplayNamePrimary)
-            thumbnailPath = cursor.getString(idxThumbnail)
-
-            contacts.add(Contact(id, displayName, thumbnailPath))
-
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                ids.add(id)
-            }
-        }
+            .toList()
         cursor.close()
         subscriber.onSuccess(contacts)
     }

@@ -14,6 +14,7 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.InterstitialAd
@@ -54,17 +55,19 @@ class TabActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = SecurePreferences(baseContext, "tmp", "NotificationHandler", true)
-        if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN")!!.isEmpty()) && (prefs.getString(
-                "PREF_PASSWORD"
-            ) == null || prefs.getString("PREF_PASSWORD")!!.isEmpty()) || Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (checkSelfPermission(
-                Manifest.permission.READ_CONTACTS
-            ) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) || !AccountUtils.isAccountCreated(
-                this
-            )
+        if ((prefs.getString("PREF_LOGIN").isNullOrEmpty()
+                    && prefs.getString("PREF_PASSWORD").isNullOrEmpty())
+            || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                    && listOf(
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.WRITE_CONTACTS
+            ).any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED })
+            || !AccountUtils.isAccountCreated(this)
         ) {
             val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
             finish()
+            return
         }
 
         setContentView(R.layout.activity_tab)
@@ -96,10 +99,9 @@ class TabActivity : AppCompatActivity() {
     private fun showAdIfNeeded() {
         val lastAd = PreferenceManager.getDefaultSharedPreferences(this).getLong(PREF_LAST_AD, 0)
         if (lastAd == 0L) {
-            PreferenceManager.getDefaultSharedPreferences(this)
-                .edit()
-                .putLong(PREF_LAST_AD, System.currentTimeMillis())
-                .apply()
+            PreferenceManager.getDefaultSharedPreferences(this).edit {
+                putLong(PREF_LAST_AD, System.currentTimeMillis())
+            }
         }
 
         val diff = System.currentTimeMillis() - lastAd
@@ -110,10 +112,9 @@ class TabActivity : AppCompatActivity() {
                 adUnitId = getString(R.string.interstitial_ad_unit_id)
                 adListener = object : AdListener() {
                     override fun onAdLoaded() {
-                        PreferenceManager.getDefaultSharedPreferences(this@TabActivity)
-                            .edit()
-                            .putLong(PREF_LAST_AD, System.currentTimeMillis())
-                            .apply()
+                        PreferenceManager.getDefaultSharedPreferences(this@TabActivity).edit {
+                            putLong(PREF_LAST_AD, System.currentTimeMillis())
+                        }
                         show()
                     }
 
@@ -122,9 +123,7 @@ class TabActivity : AppCompatActivity() {
                     override fun onAdClosed() {}
                 }
             }
-            val adRequest = AdRequest.Builder()
-                .addTestDevice("3795279CABB4FAC75E5F23A086CC9C9F")
-                .build()
+            val adRequest = AdRequest.Builder().build()
             interstitialAd.loadAd(adRequest)
         }
     }

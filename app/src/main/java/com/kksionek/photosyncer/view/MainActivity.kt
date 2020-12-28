@@ -57,9 +57,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPermissionRequestScreen() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            && listOf(
+                Manifest.permission.READ_CONTACTS,
                 Manifest.permission.WRITE_CONTACTS
-            ) != PackageManager.PERMISSION_GRANTED)
+            ).any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         ) {
             questionTextView.setText(R.string.activity_main_grant_contacts_access_message)
             questionButton.apply {
@@ -82,9 +84,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFbLoginScreen() {
         val prefs = SecurePreferences(baseContext, "tmp", "NotificationHandler", true)
-        if ((prefs.getString("PREF_LOGIN") == null || prefs.getString("PREF_LOGIN")!!.isEmpty()) && (prefs.getString(
-                "PREF_PASSWORD"
-            ) == null || prefs.getString("PREF_PASSWORD")!!.isEmpty())
+        if (prefs.getString("PREF_LOGIN").isNullOrEmpty()
+            && prefs.getString("PREF_PASSWORD").isNullOrEmpty()
         ) {
             questionTextView.setText(R.string.activity_main_facebook_permission_request_message)
             showProgress(false)
@@ -98,19 +99,24 @@ class MainActivity : AppCompatActivity() {
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
                         prefs.put("PREF_LOGIN", login)
                         prefs.put("PREF_PASSWORD", pass)
-                        SyncAdapter.fbLogin(OkHttpClient.Builder()
-                            .cookieJar(object : CookieJar {
-                                private val cookieStore = HashMap<String, List<Cookie>>()
+                        SyncAdapter.fbLogin(
+                            OkHttpClient.Builder()
+                                .cookieJar(object : CookieJar {
+                                    private val cookieStore = HashMap<String, List<Cookie>>()
 
-                                override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-                                    cookieStore[url.host] = cookies
-                                }
+                                    override fun saveFromResponse(
+                                        url: HttpUrl,
+                                        cookies: List<Cookie>
+                                    ) {
+                                        cookieStore[url.host] = cookies
+                                    }
 
-                                override fun loadForRequest(url: HttpUrl): List<Cookie> {
-                                    return cookieStore[url.host] ?: emptyList()
-                                }
-                            })
-                            .build(), baseContext)
+                                    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                                        return cookieStore[url.host] ?: emptyList()
+                                    }
+                                })
+                                .build(), baseContext
+                        )
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(
@@ -146,22 +152,24 @@ class MainActivity : AppCompatActivity() {
         val shortAnimTime = resources.getInteger(android.R.integer.config_shortAnimTime)
 
         fbLoginForm.visibility = if (show) View.GONE else View.VISIBLE
-        fbLoginForm.animate().setDuration(shortAnimTime.toLong()).alpha(
-            (if (show) 0 else 1).toFloat()
-        ).setListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                fbLoginForm.visibility = if (show) View.GONE else View.VISIBLE
-            }
-        })
+        fbLoginForm.animate()
+            .setDuration(shortAnimTime.toLong())
+            .alpha((if (show) 0 else 1).toFloat())
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    fbLoginForm.visibility = if (show) View.GONE else View.VISIBLE
+                }
+            })
 
         loginProgress.visibility = if (show) View.VISIBLE else View.GONE
-        loginProgress.animate().setDuration(shortAnimTime.toLong()).alpha(
-            (if (show) 1 else 0).toFloat()
-        ).setListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                loginProgress.visibility = if (show) View.VISIBLE else View.GONE
-            }
-        })
+        loginProgress.animate()
+            .setDuration(shortAnimTime.toLong())
+            .alpha((if (show) 1 else 0).toFloat())
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    loginProgress.visibility = if (show) View.VISIBLE else View.GONE
+                }
+            })
     }
 
     private fun showWhitelistScreen() {
@@ -251,8 +259,7 @@ class MainActivity : AppCompatActivity() {
     ) {
         if (requestCode == REQUEST_PERMISSIONS_CONTACTS) {
             if (grantResults.size == 2
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED
-                && grantResults[1] == PackageManager.PERMISSION_GRANTED
+                && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
             ) {
                 showFbLoginScreen()
             } else {

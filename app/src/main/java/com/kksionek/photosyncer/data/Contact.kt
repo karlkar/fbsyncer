@@ -17,8 +17,8 @@ open class Contact @JvmOverloads constructor(
         return mName!!.compareTo(other.getName())
     }
 
-    override fun equals(o: Any?): Boolean {
-        return o is Person && mName == o.getName()
+    override fun equals(other: Any?): Boolean {
+        return other is Person && mName == other.getName()
     }
 
     override fun getId() = mId!!

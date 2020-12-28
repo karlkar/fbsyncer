@@ -6,6 +6,8 @@ import android.content.ContentResolver
 import android.content.Context
 import android.os.Bundle
 import android.preference.PreferenceManager
+import androidx.core.content.edit
+import androidx.core.content.getSystemService
 
 object AccountUtils {
     const val ACCOUNT_NAME = "Photo Syncer"
@@ -17,23 +19,24 @@ object AccountUtils {
 
     val account: Account = Account(ACCOUNT_NAME, ACCOUNT_TYPE)
 
-    fun isAccountCreated(ctx: Context): Boolean {
-        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx)
-        return sharedPreferences.getBoolean("ACCOUNT_CREATED", false)
-    }
+    fun isAccountCreated(ctx: Context): Boolean =
+        PreferenceManager.getDefaultSharedPreferences(ctx).getBoolean("ACCOUNT_CREATED", false)
 
     fun createAccount(ctx: Context): Account? {
-        val systemService = ctx.getSystemService(Context.ACCOUNT_SERVICE) as AccountManager
+        val systemService: AccountManager? = ctx.getSystemService()
         val account = account
-        return if (systemService.addAccountExplicitly(account, null, null)) {
+        return if (systemService?.addAccountExplicitly(account, null, null) == true) {
             ContentResolver.setIsSyncable(account, CONTENT_AUTHORITY, 1)
             ContentResolver.setSyncAutomatically(account, CONTENT_AUTHORITY, true)
             ContentResolver.addPeriodicSync(
-                account, CONTENT_AUTHORITY, Bundle(),
+                account,
+                CONTENT_AUTHORITY,
+                Bundle(),
                 (7 * 24 * 60 * 60).toLong()
             )
-            val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx)
-            sharedPreferences.edit().putBoolean(PREF_ACCOUNT_CREATED, true).apply()
+            PreferenceManager.getDefaultSharedPreferences(ctx).edit {
+                putBoolean(PREF_ACCOUNT_CREATED, true)
+            }
             account
         } else {
             null
