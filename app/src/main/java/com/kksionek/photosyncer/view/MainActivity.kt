@@ -17,7 +17,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.kksionek.photosyncer.R
-import com.kksionek.photosyncer.model.SecurePreferences
+import com.kksionek.photosyncer.repository.JetpackSecureStorage
+import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountUtils
 import com.kksionek.photosyncer.sync.SyncAdapter
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -28,11 +29,11 @@ import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import java.util.ArrayList
 import java.util.HashMap
 
 class MainActivity : AppCompatActivity() {
     private lateinit var realmUi: Realm
+    private lateinit var secureStorage: SecureStorage
 
     private val isSmartManagerInstalled: Boolean
         get() = try {
@@ -47,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         realmUi = Realm.getDefaultInstance()
+        secureStorage = JetpackSecureStorage(applicationContext)
 
         showPermissionRequestScreen()
     }
@@ -83,9 +85,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showFbLoginScreen() {
-        val prefs = SecurePreferences(baseContext, "tmp", "NotificationHandler", true)
-        if (prefs.getString("PREF_LOGIN").isNullOrEmpty()
-            && prefs.getString("PREF_PASSWORD").isNullOrEmpty()
+        if (secureStorage.read("PREF_LOGIN").isNullOrEmpty()
+            && secureStorage.read("PREF_PASSWORD").isNullOrEmpty()
         ) {
             questionTextView.setText(R.string.activity_main_facebook_permission_request_message)
             showProgress(false)
@@ -97,8 +98,8 @@ class MainActivity : AppCompatActivity() {
                     val pass = fbPass.text.toString()
 
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
-                        prefs.put("PREF_LOGIN", login)
-                        prefs.put("PREF_PASSWORD", pass)
+                        secureStorage.write("PREF_LOGIN", login)
+                        secureStorage.write("PREF_PASSWORD", pass)
                         SyncAdapter.fbLogin(
                             OkHttpClient.Builder()
                                 .cookieJar(object : CookieJar {
@@ -115,7 +116,8 @@ class MainActivity : AppCompatActivity() {
                                         return cookieStore[url.host] ?: emptyList()
                                     }
                                 })
-                                .build(), baseContext
+                                .build(),
+                            secureStorage
                         )
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
@@ -126,7 +128,7 @@ class MainActivity : AppCompatActivity() {
                                 },
                                 {
                                     showProgress(false)
-                                    prefs.clear()
+                                    secureStorage.clear()
                                     Toast.makeText(
                                         baseContext,
                                         R.string.activity_main_login_failed_toast,

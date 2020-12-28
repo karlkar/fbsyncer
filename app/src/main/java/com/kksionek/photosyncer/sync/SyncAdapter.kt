@@ -27,7 +27,8 @@ import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.model.RxContacts
-import com.kksionek.photosyncer.model.SecurePreferences
+import com.kksionek.photosyncer.repository.JetpackSecureStorage
+import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.view.TabActivity
 import com.kksionek.photosyncer.view.TabActivity.Companion.PREF_LAST_AD
 import io.reactivex.Flowable
@@ -66,6 +67,9 @@ class SyncAdapter @JvmOverloads constructor(
 ) : AbstractThreadedSyncAdapter(context, autoInitialize, allowParallelSyncs) {
 
     private val threadPool = Executors.newFixedThreadPool(2)
+
+    private val secureStorage: SecureStorage = JetpackSecureStorage(context)
+    private val firebaseCrashlytics: FirebaseCrashlytics = FirebaseCrashlytics.getInstance()
 
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
@@ -126,7 +130,7 @@ class SyncAdapter @JvmOverloads constructor(
 
     private val rxFriends: Single<List<Friend>>
         get() {
-            return fbLogin(okHttpClient!!, context)
+            return fbLogin(okHttpClient, secureStorage)
                 .subscribeOn(Schedulers.io())
                 .map { resp ->
                     var textResponse = ""
@@ -139,12 +143,8 @@ class SyncAdapter @JvmOverloads constructor(
                             uids.add(group)
                         }
                         if (uids.isEmpty()) {
-                            if (!BuildConfig.DEBUG) {
-                                FirebaseCrashlytics.getInstance()
-                                    .log("[$ppk] No friend uids were found in `resp` = $resp")
-                                FirebaseCrashlytics.getInstance()
-                                    .recordException(Exception("No friend uids were found in `resp`"))
-                            }
+                            firebaseCrashlytics.log("[$ppk] No friend uids were found in `resp` = $resp")
+                            firebaseCrashlytics.recordException(Exception("No friend uids were found in `resp`"))
                         }
 
                         ++ppk
@@ -152,7 +152,7 @@ class SyncAdapter @JvmOverloads constructor(
                             .url("https://m.facebook.com/friends/center/friends/?ppk=$ppk&bph=$ppk#friends_center_main")
                             .build()
                         try {
-                            val response = okHttpClient!!.newCall(req).execute()
+                            val response = okHttpClient.newCall(req).execute()
                             if (response.isSuccessful) {
                                 textResponse = response.body!!.string()
                             }
@@ -271,18 +271,14 @@ class SyncAdapter @JvmOverloads constructor(
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(context.getString(R.string.notification_synchronisation_done))
             .setAutoCancel(true)
-            .setDefaults(Notification.DEFAULT_SOUND or Notification.FLAG_SHOW_LIGHTS)
-            .setLights(-0xff0100, 300, 100)
+            .setDefaults(Notification.DEFAULT_SOUND)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(context.getString(R.string.notification_synchronisation_done))
             )
             .setContentIntent(pendingIntent)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        }
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         notificationManager?.notify(0, builder.build())
     }
 
@@ -291,7 +287,7 @@ class SyncAdapter @JvmOverloads constructor(
             val req = Request.Builder()
                 .url("https://m.facebook.com/friends/hovercard/mbasic/?uid=$uid&redirectURI=https%3A%2F%2Fm.facebook.com%2Ffriends%2Fcenter%2Ffriends%2F%3Frefid%3D9%26mfl_act%3D1%23last_acted")
                 .build()
-            okHttpClient!!.newCall(req).execute()
+            okHttpClient.newCall(req).execute()
         }.toObservable()
             .filter { it.isSuccessful }
             .map { response ->
@@ -315,12 +311,8 @@ class SyncAdapter @JvmOverloads constructor(
                     profPicIdx = responseStr.indexOf("class=\"y q\"")
                 }
                 if (profPicIdx == -1) {
-                    if (!BuildConfig.DEBUG) {
-                        FirebaseCrashlytics.getInstance()
-                            .log("Uid = '$uid'. Page content = $responseStr")
-                        FirebaseCrashlytics.getInstance()
-                            .recordException(Exception("Cannot find picture for friend"))
-                    }
+                    firebaseCrashlytics.log("Uid = '$uid'. Page content = $responseStr")
+                    firebaseCrashlytics.recordException(Exception("Cannot find picture for friend"))
                     return@map ""
                 }
                 responseStr.substring(
@@ -353,7 +345,7 @@ class SyncAdapter @JvmOverloads constructor(
             val req = Request.Builder()
                 .url(src)
                 .build()
-            val resp = okHttpClient!!.newCall(req).execute()
+            val resp = okHttpClient.newCall(req).execute()
             if (resp.isSuccessful) {
                 val inputStream = resp.body!!.byteStream()
                 val bitmap = BitmapFactory.decodeStream(inputStream)
@@ -501,11 +493,10 @@ class SyncAdapter @JvmOverloads constructor(
         private val URLENCODED = "application/x-www-form-urlencoded".toMediaTypeOrNull()
         private val UID_PATTERN = Pattern.compile("\\?uid=(.*?)&")
 
-        fun fbLogin(httpClient: OkHttpClient, context: Context): Single<String> {
+        fun fbLogin(httpClient: OkHttpClient, secureStorage: SecureStorage): Single<String> {
             return Single.fromPublisher { singlePublisher ->
-                val prefs = SecurePreferences(context, "tmp", "NotificationHandler", true)
-                val login = prefs.getString("PREF_LOGIN")
-                val pass = prefs.getString("PREF_PASSWORD")
+                val login = secureStorage.read("PREF_LOGIN")
+                val pass = secureStorage.read("PREF_PASSWORD")
                 if (login.isNullOrEmpty() && pass.isNullOrEmpty()) {
                     singlePublisher.onError(Exception("Login and/or password not set"))
                     return@fromPublisher
@@ -569,7 +560,7 @@ class SyncAdapter @JvmOverloads constructor(
 
                 if (responseStr.contains("login_form")) {
                     Log.e(TAG, "fbLogin: Wrong login/password")
-                    prefs.clear()
+                    secureStorage.clear()
                     singlePublisher.onError(Exception("Wrong login and/or password"))
                 }
                 if (responseStr.contains("Please try again later")) {

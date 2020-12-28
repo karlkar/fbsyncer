@@ -59,17 +59,16 @@ class ContactsAdapter<T>(
     }
 
     override fun onBindViewHolder(holder: ContactViewHolder<T>, position: Int) {
-        val contact = getItem(holder.adapterPosition)
-        if (contact == null) {
+        if (holder.adapterPosition == RecyclerView.NO_POSITION) {
             Log.e(TAG, "WTF")
             return
         }
 
-        holder.data = contact
+        holder.data = getItem(holder.adapterPosition)!!
     }
 
     override fun getSectionName(position: Int): String =
-        getItem(position)?.getName()?.firstOrNull()?.toString() ?: ""
+        getItem(position)?.getName()?.firstOrNull()?.toString().orEmpty()
 
     companion object {
         private const val TAG = "ContactsAdapter"

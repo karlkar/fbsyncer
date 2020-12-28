@@ -22,7 +22,7 @@ import com.google.android.material.tabs.TabLayout
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
-import com.kksionek.photosyncer.model.SecurePreferences
+import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountUtils
 import io.realm.Realm
 import kotlinx.android.synthetic.main.activity_tab.*
@@ -32,6 +32,8 @@ class TabActivity : AppCompatActivity() {
 
     private lateinit var realmUi: Realm
     private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
+    private lateinit var secureStorage: SecureStorage
+
     private val syncStatusObserver = { _: Int ->
         runOnUiThread {
             val account = AccountUtils.account
@@ -54,9 +56,8 @@ class TabActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = SecurePreferences(baseContext, "tmp", "NotificationHandler", true)
-        if ((prefs.getString("PREF_LOGIN").isNullOrEmpty()
-                    && prefs.getString("PREF_PASSWORD").isNullOrEmpty())
+        if ((secureStorage.read("PREF_LOGIN").isNullOrEmpty()
+                    && secureStorage.read("PREF_PASSWORD").isNullOrEmpty())
             || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                     && listOf(
                 Manifest.permission.READ_CONTACTS,
