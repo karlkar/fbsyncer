@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/tabFragment">
+
+    <fragment
+        android:id="@+id/tabFragment"
+        android:name="com.kksionek.photosyncer.view.TabFragment"
+        android:label="TabFragment">
+        <action
+            android:id="@+id/action_tabFragment_to_fbPickerFragment"
+            app:destination="@id/fbPickerFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/onboardingFragment"
+        android:name="com.kksionek.photosyncer.view.OnboardingFragment"
+        android:label="OnboardingFragment" />
+
+    <fragment
+        android:id="@+id/fbPickerFragment"
+        android:name="com.kksionek.photosyncer.view.FbPickerFragment"
+        android:label="FbPickerFragment">
+
+        <argument
+            android:name="contactId"
+            app:argType="integer"
+            app:nullable="false" />
+    </fragment>
+</navigation>

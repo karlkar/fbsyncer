@@ -1,29 +1,21 @@
 package com.kksionek.photosyncer.sync
 
 import android.accounts.Account
-import android.app.Notification
 import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.*
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.os.Build
 import android.os.Bundle
 import android.os.Looper
-import android.preference.PreferenceManager
 import android.provider.ContactsContract
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.content.getSystemService
+import androidx.preference.PreferenceManager
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.model.RxContacts
 import com.kksionek.photosyncer.repository.SecureStorage
-import com.kksionek.photosyncer.view.TabActivity
-import com.kksionek.photosyncer.view.TabActivity.Companion.PREF_LAST_AD
+import com.kksionek.photosyncer.view.TabFragment.Companion.PREF_LAST_AD
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.Flowable
 import io.reactivex.Observable
@@ -211,49 +203,49 @@ class SyncAdapter @Inject constructor(
             return
         }
 
-        val intent = Intent(context, TabActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            putExtra("INTENT_AD", true)
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            1,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val notificationManager: NotificationManager? = context.getSystemService()
-        val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (::notificationChannel.isInitialized) {
-                notificationChannel = NotificationChannel(
-                    "syncDone",
-                    "Photo Syncer",
-                    NotificationManager.IMPORTANCE_HIGH
-                )
-                notificationChannel.enableLights(true)
-                notificationManager?.createNotificationChannel(notificationChannel)
-            }
-            notificationChannel.id
-        } else {
-            ""
-        }
-        val builder = NotificationCompat.Builder(
-            context,
-            notificationChannelId
-        )
-        builder.setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(context.getString(R.string.notification_synchronisation_done))
-            .setAutoCancel(true)
-            .setDefaults(Notification.DEFAULT_SOUND)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(context.getString(R.string.notification_synchronisation_done))
-            )
-            .setContentIntent(pendingIntent)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        notificationManager?.notify(0, builder.build())
+//        val intent = Intent(context, TabActivity::class.java).apply {
+//            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+//            putExtra("INTENT_AD", true)
+//        }
+//        val pendingIntent = PendingIntent.getActivity(
+//            context,
+//            1,
+//            intent,
+//            PendingIntent.FLAG_UPDATE_CURRENT
+//        )
+//
+//        val notificationManager: NotificationManager? = context.getSystemService()
+//        val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            if (::notificationChannel.isInitialized) {
+//                notificationChannel = NotificationChannel(
+//                    "syncDone",
+//                    "Photo Syncer",
+//                    NotificationManager.IMPORTANCE_HIGH
+//                )
+//                notificationChannel.enableLights(true)
+//                notificationManager?.createNotificationChannel(notificationChannel)
+//            }
+//            notificationChannel.id
+//        } else {
+//            ""
+//        }
+//        val builder = NotificationCompat.Builder(
+//            context,
+//            notificationChannelId
+//        )
+//        builder.setSmallIcon(R.mipmap.ic_launcher)
+//            .setContentTitle(context.getString(R.string.app_name))
+//            .setContentText(context.getString(R.string.notification_synchronisation_done))
+//            .setAutoCancel(true)
+//            .setDefaults(Notification.DEFAULT_SOUND)
+//            .setPriority(NotificationCompat.PRIORITY_HIGH)
+//            .setStyle(
+//                NotificationCompat.BigTextStyle()
+//                    .bigText(context.getString(R.string.notification_synchronisation_done))
+//            )
+//            .setContentIntent(pendingIntent)
+//            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+//        notificationManager?.notify(0, builder.build())
     }
 
     private fun getRxFriend(uid: String): Single<Friend> {

@@ -5,6 +5,7 @@ apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'realm-android'
 apply plugin: 'com.google.firebase.crashlytics'
+apply plugin: "androidx.navigation.safeargs.kotlin"
 
 // Load keystore
 //def keystorePropertiesFile = file("../../keystore.properties")
@@ -20,7 +21,7 @@ android {
 //            keyPassword keystoreProperties['keyPassword']
 //        }
 //    }
-    compileSdkVersion 28
+    compileSdkVersion 29
     defaultConfig {
         applicationId "com.kksionek.photosyncer"
         minSdkVersion 23
@@ -29,7 +30,6 @@ android {
         versionName "1.14"
         vectorDrawables.useSupportLibrary = true
         resConfigs "en"
-        multiDexEnabled true
 
         javaCompileOptions {
             annotationProcessorOptions {
@@ -63,6 +63,9 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
+    buildFeatures {
+        viewBinding = true
+    }
     splits {
         abi {
             enable true
@@ -75,25 +78,36 @@ android {
 
 dependencies {
     def room_version = "2.2.6"
+    def nav_version = "2.3.2"
 
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.simplecityapps:recyclerview-fastscroll:1.0.16'
+
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation "androidx.security:security-crypto:1.1.0-alpha03"
     implementation "androidx.core:core-ktx:1.3.2"
+    implementation 'androidx.preference:preference-ktx:1.1.1'
+
     implementation "com.google.firebase:firebase-core:18.0.0"
     implementation "com.google.firebase:firebase-ads:19.6.0"
     implementation 'com.google.firebase:firebase-crashlytics:17.3.0'
+
     implementation "com.squareup.okhttp3:okhttp:4.8.1"
 //    implementation "com.squareup.okhttp3:logging-interceptor:4.8.1"
+
     implementation 'com.squareup.picasso:picasso:2.71828'
+
     implementation 'io.realm:android-adapters:1.4.0'
+
     implementation 'io.reactivex.rxjava2:rxjava:2.2.19'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+
     implementation 'org.jsoup:jsoup:1.12.1'
+
     implementation 'org.apache.commons:commons-text:1.8'
+
     implementation 'com.google.android.material:material:1.2.1'
-    implementation 'androidx.multidex:multidex:2.0.1'
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
     implementation "com.google.dagger:hilt-android:2.29.1-alpha"
@@ -102,6 +116,9 @@ dependencies {
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     kapt "androidx.room:room-compiler:$room_version"
+
+    implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
+    implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
 
     testImplementation 'junit:junit:4.13.1'
     testImplementation "androidx.room:room-testing:$room_version"

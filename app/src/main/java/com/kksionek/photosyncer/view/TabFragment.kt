@@ -4,17 +4,19 @@ import android.Manifest
 import android.app.Activity
 import android.content.ContentResolver
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.preference.PreferenceManager
-import android.view.Menu
-import android.view.MenuItem
+import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
+import androidx.core.content.PermissionChecker.checkSelfPermission
 import androidx.core.content.edit
+import androidx.fragment.app.Fragment
+import androidx.navigation.NavOptions
+import androidx.navigation.fragment.findNavController
+import androidx.preference.PreferenceManager
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.InterstitialAd
@@ -22,16 +24,25 @@ import com.google.android.material.tabs.TabLayout
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.data.Contact
 import com.kksionek.photosyncer.data.Friend
+import com.kksionek.photosyncer.databinding.FragmentTabBinding
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountUtils
 import dagger.hilt.android.AndroidEntryPoint
 import io.realm.Realm
-import kotlinx.android.synthetic.main.activity_tab.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class TabActivity : AppCompatActivity() {
+class TabFragment : Fragment() {
+
+    companion object {
+
+        const val REQUEST_FACEBOOK_PICKER = 4445
+        const val PREF_LAST_AD = "LAST_AD"
+    }
+
+    private var _binding: FragmentTabBinding? = null
+    private val binding get() = _binding!!
 
     private lateinit var realmUi: Realm
     private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
@@ -40,7 +51,7 @@ class TabActivity : AppCompatActivity() {
     lateinit var secureStorage: SecureStorage
 
     private val syncStatusObserver = { _: Int ->
-        runOnUiThread {
+        requireActivity().runOnUiThread {
             val account = AccountUtils.account
             val syncActive = ContentResolver.isSyncActive(account, AccountUtils.CONTENT_AUTHORITY)
             val syncPending = ContentResolver.isSyncPending(account, AccountUtils.CONTENT_AUTHORITY)
@@ -57,37 +68,61 @@ class TabActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
+
+        val navController = findNavController()
+        val currentBackStackEntry = navController.currentBackStackEntry
+        val savedStateHandle = currentBackStackEntry!!.savedStateHandle
+        savedStateHandle.getLiveData<Boolean>(OnboardingFragment.LOGIN_SUCCESSFUL)
+            .observe(currentBackStackEntry) { success ->
+                if (!success) {
+                    val startDestination = navController.graph.startDestination
+                    val navOptions = NavOptions.Builder()
+                        .setPopUpTo(startDestination, true)
+                        .build()
+                    navController.navigate(startDestination, null, navOptions)
+                }
+            }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        return FragmentTabBinding.inflate(inflater, container, false).also {
+            _binding = it
+        }.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         if ((secureStorage.read("PREF_LOGIN").isNullOrEmpty()
                     && secureStorage.read("PREF_PASSWORD").isNullOrEmpty())
             || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
                     && listOf(
                 Manifest.permission.READ_CONTACTS,
                 Manifest.permission.WRITE_CONTACTS
-            ).any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED })
-            || !AccountUtils.isAccountCreated(this)
+            ).any { checkSelfPermission(requireContext(), it) != PERMISSION_GRANTED })
+            || !AccountUtils.isAccountCreated(requireContext())
         ) {
-            val intent = Intent(this, MainActivity::class.java)
-            startActivity(intent)
-            finish()
+            findNavController().navigate(R.id.onboardingFragment)
             return
         }
 
-        setContentView(R.layout.activity_tab)
-
         realmUi = Realm.getDefaultInstance()
 
-        val adapter = ViewPagerAdapter(this, realmUi)
-        pager.adapter = adapter
+        val adapter = ViewPagerAdapter(requireContext(), realmUi)
+        binding.pager.adapter = adapter
 
-        val tabLayout = findViewById<TabLayout>(R.id.tab_layout)
         for (i in 0 until adapter.count) {
-            tabLayout.addTab(tabLayout.newTab().setText(adapter.getPageTitle(i)))
+            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(adapter.getPageTitle(i)))
         }
-        tabLayout.tabGravity = TabLayout.GRAVITY_FILL
-        pager.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(tabLayout))
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+        binding.tabLayout.tabGravity = TabLayout.GRAVITY_FILL
+        binding.pager.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(binding.tabLayout))
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
-                pager.currentItem = tab.position
+                binding.pager.currentItem = tab.position
             }
 
             override fun onTabUnselected(tab: TabLayout.Tab) {}
@@ -99,9 +134,10 @@ class TabActivity : AppCompatActivity() {
     }
 
     private fun showAdIfNeeded() {
-        val lastAd = PreferenceManager.getDefaultSharedPreferences(this).getLong(PREF_LAST_AD, 0)
+        val lastAd = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            .getLong(PREF_LAST_AD, 0)
         if (lastAd == 0L) {
-            PreferenceManager.getDefaultSharedPreferences(this).edit {
+            PreferenceManager.getDefaultSharedPreferences(requireContext()).edit {
                 putLong(PREF_LAST_AD, System.currentTimeMillis())
             }
         }
@@ -109,12 +145,12 @@ class TabActivity : AppCompatActivity() {
         val diff = System.currentTimeMillis() - lastAd
         val days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
 
-        if (days >= 6 || intent.getBooleanExtra("INTENT_AD", false)) {
-            val interstitialAd = InterstitialAd(this).apply {
+        if (days >= 6 || requireActivity().intent.getBooleanExtra("INTENT_AD", false)) {
+            val interstitialAd = InterstitialAd(requireContext()).apply {
                 adUnitId = getString(R.string.interstitial_ad_unit_id)
                 adListener = object : AdListener() {
                     override fun onAdLoaded() {
-                        PreferenceManager.getDefaultSharedPreferences(this@TabActivity).edit {
+                        PreferenceManager.getDefaultSharedPreferences(requireContext()).edit {
                             putLong(PREF_LAST_AD, System.currentTimeMillis())
                         }
                         show()
@@ -130,13 +166,11 @@ class TabActivity : AppCompatActivity() {
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        val menuItem = menu.findItem(R.id.menu_sync)
-        if (menuItem != null) {
-            menuItemSyncCtrl = MenuItemSyncCtrl(this, menuItem)
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.main_menu, menu)
+        menu.findItem(R.id.menu_sync)?.let {
+            menuItemSyncCtrl = MenuItemSyncCtrl(requireContext(), it)
         }
-        return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -169,9 +203,14 @@ class TabActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        super.onPause()
         ContentResolver.removeStatusChangeListener(syncObserverHandle)
         syncObserverHandle = null
+        super.onPause()
+    }
+
+    override fun onDestroyView() {
+        _binding = null
+        super.onDestroyView()
     }
 
     override fun onDestroy() {
@@ -182,11 +221,11 @@ class TabActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == REQUEST_FACEBOOK_PICKER) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                val contactId = data.getStringExtra(FacebookPickerActivity.EXTRA_ID)
+                val contactId = data.getStringExtra(FbPickerFragment.EXTRA_ID)
                 val contact = realmUi.where(Contact::class.java)
                     .equalTo("id", contactId)
                     .findFirst()
-                val friendId = data.getStringExtra(FacebookPickerActivity.EXTRA_RESULT_ID)
+                val friendId = data.getStringExtra(FbPickerFragment.EXTRA_RESULT_ID)
                 val friend = realmUi.where(Friend::class.java)
                     .equalTo("id", friendId)
                     .findFirst()
@@ -202,7 +241,7 @@ class TabActivity : AppCompatActivity() {
                 // TODO: Sync single
 
                 if (sameNameFriends.size > 1) {
-                    AlertDialog.Builder(this)
+                    AlertDialog.Builder(requireContext())
                         .setTitle(R.string.problem)
                         .setMessage(R.string.problem_message)
                         .setPositiveButton(android.R.string.ok) { dialogInterface, _ -> dialogInterface.dismiss() }
@@ -210,17 +249,11 @@ class TabActivity : AppCompatActivity() {
                         .show()
                 }
 
-                Toast.makeText(this, R.string.sync_preference_saved, Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.sync_preference_saved, Toast.LENGTH_SHORT)
+                    .show()
             }
             return
         }
         super.onActivityResult(requestCode, resultCode, data)
-    }
-
-    companion object {
-
-        const val REQUEST_FACEBOOK_PICKER = 4445
-
-        const val PREF_LAST_AD = "LAST_AD"
     }
 }

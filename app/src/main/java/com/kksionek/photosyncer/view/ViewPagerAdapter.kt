@@ -1,7 +1,6 @@
 package com.kksionek.photosyncer.view
 
-import android.app.Activity
-import android.content.Intent
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,7 +16,7 @@ import io.realm.Sort
 import kotlinx.android.synthetic.main.tab_not_synced.view.*
 
 internal class ViewPagerAdapter(
-    private val parentActivity: Activity,
+    private val context: Context,
     private val realmUi: Realm
 ) : PagerAdapter() {
 
@@ -50,14 +49,15 @@ internal class ViewPagerAdapter(
 
                 contactsAdapter = ContactsAdapter(context, notSyncedContacts, true)
                 contactsAdapter.onItemClickListener = { contact ->
-                    val facebookPicketIntent =
-                        Intent(context, FacebookPickerActivity::class.java).apply {
-                            putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId())
-                        }
-                    parentActivity.startActivityForResult(
-                        facebookPicketIntent,
-                        TabActivity.REQUEST_FACEBOOK_PICKER
-                    )
+                    // TODO : Handle display FbPicker
+//                    val facebookPicketIntent =
+//                        Intent(context, FacebookPickerActivity::class.java).apply {
+//                            putExtra(FacebookPickerActivity.EXTRA_ID, contact.getId())
+//                        }
+//                    parentActivity.startActivityForResult(
+//                        facebookPicketIntent,
+//                        TabActivity.REQUEST_FACEBOOK_PICKER
+//                    )
                 }
             }
             1 -> {
@@ -121,9 +121,9 @@ internal class ViewPagerAdapter(
     }
 
     override fun getPageTitle(position: Int): CharSequence? = when (position) {
-        0 -> parentActivity.getString(R.string.activity_tab_tab_not_synced)
-        1 -> parentActivity.getString(R.string.activity_tab_tab_auto)
-        2 -> parentActivity.getString(R.string.activity_tab_tab_manual)
+        0 -> context.getString(R.string.activity_tab_tab_not_synced)
+        1 -> context.getString(R.string.activity_tab_tab_auto)
+        2 -> context.getString(R.string.activity_tab_tab_manual)
         else -> super.getPageTitle(position)
     }
 

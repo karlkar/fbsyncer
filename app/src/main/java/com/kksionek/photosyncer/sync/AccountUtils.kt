@@ -5,9 +5,9 @@ import android.accounts.AccountManager
 import android.content.ContentResolver
 import android.content.Context
 import android.os.Bundle
-import android.preference.PreferenceManager
 import androidx.core.content.edit
 import androidx.core.content.getSystemService
+import androidx.preference.PreferenceManager
 
 object AccountUtils {
     const val ACCOUNT_NAME = "Photo Syncer"
