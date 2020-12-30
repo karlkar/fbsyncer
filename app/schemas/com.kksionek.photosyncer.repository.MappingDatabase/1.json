@@ -2,15 +2,15 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "e955a1013acb7a4206e0638c00f08e98",
+    "identityHash": "e895f10069fbdf90eeddb0cd147bc63c",
     "entities": [
       {
         "tableName": "ContactEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`contactId` INTEGER NOT NULL, `name` TEXT NOT NULL, `photo` TEXT NOT NULL, `relatedFriend` INTEGER, `synced` INTEGER NOT NULL, `old` INTEGER NOT NULL, `isManual` INTEGER NOT NULL, PRIMARY KEY(`contactId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `photo` TEXT NOT NULL, `relatedFriend` INTEGER, `synced` INTEGER NOT NULL, `old` INTEGER NOT NULL, `isManual` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
-            "fieldPath": "contactId",
-            "columnName": "contactId",
+            "fieldPath": "id",
+            "columnName": "id",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -53,7 +53,7 @@
         ],
         "primaryKey": {
           "columnNames": [
-            "contactId"
+            "id"
           ],
           "autoGenerate": false
         },
@@ -62,11 +62,11 @@
       },
       {
         "tableName": "FriendEntity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`friendId` INTEGER NOT NULL, `name` TEXT NOT NULL, `photo` TEXT NOT NULL, `old` INTEGER NOT NULL, PRIMARY KEY(`friendId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `photo` TEXT NOT NULL, `old` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
-            "fieldPath": "friendId",
-            "columnName": "friendId",
+            "fieldPath": "id",
+            "columnName": "id",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -91,7 +91,7 @@
         ],
         "primaryKey": {
           "columnNames": [
-            "friendId"
+            "id"
           ],
           "autoGenerate": false
         },
@@ -102,7 +102,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e955a1013acb7a4206e0638c00f08e98')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e895f10069fbdf90eeddb0cd147bc63c')"
     ]
   }
 }

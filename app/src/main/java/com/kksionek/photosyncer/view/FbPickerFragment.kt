@@ -4,25 +4,21 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kksionek.photosyncer.R
-import com.kksionek.photosyncer.data.Contact
-import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.databinding.FragmentFbPickerBinding
 import com.kksionek.photosyncer.model.ContactsAdapter
-import io.realm.Realm
-import io.realm.Sort
+import com.kksionek.photosyncer.model.FriendEntity
+import com.kksionek.photosyncer.viewmodel.FbPickerViewModel
 
 class FbPickerFragment : Fragment() {
-
-    companion object {
-        const val EXTRA_ID = "ID"
-        const val EXTRA_RESULT_ID = "Result_ID"
-    }
 
     private val args: FbPickerFragmentArgs by navArgs()
 
@@ -31,7 +27,7 @@ class FbPickerFragment : Fragment() {
     private var _binding: FragmentFbPickerBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var realm: Realm
+    private val fbPickerViewModel: FbPickerViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,37 +41,51 @@ class FbPickerFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        realm = Realm.getDefaultInstance()
-        val contact = realm.where(Contact::class.java)
-            .equalTo("id", contactId)
-            .findFirst()
+        val contactsAdapter = ContactsAdapter<FriendEntity>()
 
-        binding.infoTextName.text = contact!!.getName()
+        fbPickerViewModel.contactEntity.observe(viewLifecycleOwner) {
+            it?.let { contact ->
+                binding.infoTextName.text = contact.name
+            }
+        }
+        fbPickerViewModel.friendEntities.observe(viewLifecycleOwner) {
+            it?.let { list ->
+                contactsAdapter.submitList(list)
+            }
+        }
+        fbPickerViewModel.bindingCompletedWithoutError.observe(viewLifecycleOwner) {
+            it?.let { success ->
+                if (!success) {
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(R.string.problem)
+                        .setMessage(R.string.problem_message)
+                        .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
+                        .create()
+                        .show()
+                }
 
-        val notSyncedFriends = realm.where(Friend::class.java)
-            .findAll()
-            .sort("mName", Sort.ASCENDING)
-        val contactsAdapter = ContactsAdapter(requireContext(), notSyncedFriends, false)
+                Toast.makeText(requireContext(), R.string.sync_preference_saved, Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+
+        fbPickerViewModel.init()
+
         contactsAdapter.onItemClickListener = { friend ->
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.alert_create_bond_title)
                 .setMessage(
                     getString(
                         R.string.alert_create_bond_message,
-                        contact.getName(),
-                        friend.getName()
+                        fbPickerViewModel.contactEntity.value?.name.orEmpty(),
+                        friend.name
                     )
                 )
                 .setPositiveButton(android.R.string.yes) { _, _ ->
-                    // TODO Store result in view model
-//                    val intent = Intent().apply {
-//                        putExtra(FacebookPickerActivity.EXTRA_ID, contactId)
-//                        putExtra(FacebookPickerActivity.EXTRA_RESULT_ID, friend.getId())
-//                    }
-//                    setResult(Activity.RESULT_OK, intent)
-//                    finish()
+                    fbPickerViewModel.bindFriend(contactId, friend)
+                    findNavController().navigateUp()
                 }
-                .setNegativeButton(android.R.string.no) { dialogInterface, _ -> dialogInterface.dismiss() }
+                .setNegativeButton(android.R.string.no) { dialog, _ -> dialog.dismiss() }
                 .create()
                 .show()
         }
@@ -89,10 +99,5 @@ class FbPickerFragment : Fragment() {
     override fun onDestroyView() {
         _binding = null
         super.onDestroyView()
-    }
-
-    override fun onDestroy() {
-        realm.close()
-        super.onDestroy()
     }
 }

@@ -1,7 +1,6 @@
 package com.kksionek.photosyncer.model
 
 import android.content.Context
-import android.os.Build
 import android.provider.ContactsContract
 import com.kksionek.photosyncer.data.Contact
 import io.reactivex.Single
@@ -33,7 +32,7 @@ object RxContacts {
 
         val contacts = generateSequence { if (cursor.moveToNext()) cursor else null }
             .map {
-                val id = cursor.getString(idxId)
+                val id = cursor.getInt(idxId)
                 val displayName = cursor.getString(idxDisplayNamePrimary)
                 val thumbnailPath = cursor.getString(idxThumbnail)
                 Contact(id, displayName, thumbnailPath)

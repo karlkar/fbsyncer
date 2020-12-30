@@ -7,7 +7,7 @@ data class ContactAndFriend(
     @Embedded val contactEntity: ContactEntity,
     @Relation(
         parentColumn = "relatedFriend",
-        entityColumn = "friendId"
+        entityColumn = "id"
     )
     val friendEntity: FriendEntity
 )

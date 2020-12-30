@@ -42,8 +42,8 @@ class AccountAuthenticatorService : Service() {
         ): Bundle {
             Log.i(TAG, "addAccount")
             return Bundle().apply {
-                putString(AccountManager.KEY_ACCOUNT_NAME, AccountUtils.ACCOUNT_NAME)
-                putString(AccountManager.KEY_ACCOUNT_TYPE, AccountUtils.ACCOUNT_TYPE)
+                putString(AccountManager.KEY_ACCOUNT_NAME, com.kksionek.photosyncer.sync.AccountManager.ACCOUNT_NAME)
+                putString(AccountManager.KEY_ACCOUNT_TYPE, com.kksionek.photosyncer.sync.AccountManager.ACCOUNT_TYPE)
             }
         }
 

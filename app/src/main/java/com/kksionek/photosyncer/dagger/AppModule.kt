@@ -1,9 +1,9 @@
 package com.kksionek.photosyncer.dagger
 
 import android.content.Context
+import androidx.room.Room
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.kksionek.photosyncer.repository.JetpackSecureStorage
-import com.kksionek.photosyncer.repository.SecureStorage
+import com.kksionek.photosyncer.repository.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,4 +42,16 @@ class AppModule {
             })
             .build()
     }
+
+    @Provides
+    fun provideRoomDatabase(@ApplicationContext appContext: Context): MappingDatabase =
+        Room.databaseBuilder(appContext, MappingDatabase::class.java, "mappingDatabase").build()
+
+    @Provides
+    fun provideContactDao(database: MappingDatabase): ContactDao =
+        database.contactDao()
+
+    @Provides
+    fun provideFriendDao(database: MappingDatabase): FriendDao =
+        database.friendDao()
 }

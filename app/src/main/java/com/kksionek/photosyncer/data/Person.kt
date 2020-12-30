@@ -1,9 +1,7 @@
 package com.kksionek.photosyncer.data
 
 interface Person {
-    fun getId(): String
-
-    fun getName(): String
-
-    fun getPhoto(): String
+    val id: Int
+    val name: String
+    val photo: String
 }

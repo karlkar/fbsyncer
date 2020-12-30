@@ -1,19 +1,15 @@
 package com.kksionek.photosyncer.view
 
-import android.Manifest
-import android.app.Activity
 import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.*
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
-import androidx.core.content.PermissionChecker.checkSelfPermission
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
@@ -22,11 +18,13 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.InterstitialAd
 import com.google.android.material.tabs.TabLayout
 import com.kksionek.photosyncer.R
-import com.kksionek.photosyncer.data.Contact
-import com.kksionek.photosyncer.data.Friend
 import com.kksionek.photosyncer.databinding.FragmentTabBinding
+import com.kksionek.photosyncer.model.ContactEntity
+import com.kksionek.photosyncer.model.ContactsAdapter
 import com.kksionek.photosyncer.repository.SecureStorage
-import com.kksionek.photosyncer.sync.AccountUtils
+import com.kksionek.photosyncer.sync.AccountManager
+import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
+import com.kksionek.photosyncer.viewmodel.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import io.realm.Realm
 import java.util.concurrent.TimeUnit
@@ -36,8 +34,6 @@ import javax.inject.Inject
 class TabFragment : Fragment() {
 
     companion object {
-
-        const val REQUEST_FACEBOOK_PICKER = 4445
         const val PREF_LAST_AD = "LAST_AD"
     }
 
@@ -47,14 +43,20 @@ class TabFragment : Fragment() {
     private lateinit var realmUi: Realm
     private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
 
+    private val tabViewModel: TabViewModel by viewModels()
+
+    private val contactsAdapter = ContactsAdapter<ContactEntity>()
+
     @Inject
     lateinit var secureStorage: SecureStorage
 
+    @Inject
+    lateinit var accountManager: AccountManager
+
     private val syncStatusObserver = { _: Int ->
         requireActivity().runOnUiThread {
-            val account = AccountUtils.account
-            val syncActive = ContentResolver.isSyncActive(account, AccountUtils.CONTENT_AUTHORITY)
-            val syncPending = ContentResolver.isSyncPending(account, AccountUtils.CONTENT_AUTHORITY)
+            val syncActive = accountManager.isSyncActive()
+            val syncPending = accountManager.isSyncPending()
 
             //Log.d(TAG, "Event received: " + (syncActive || syncPending));
             if (syncActive || syncPending) {
@@ -66,6 +68,8 @@ class TabFragment : Fragment() {
     }
     private var syncObserverHandle: Any? = null
 
+    private val onboardingViewModel: OnboardingViewModel by activityViewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
@@ -73,7 +77,7 @@ class TabFragment : Fragment() {
         val navController = findNavController()
         val currentBackStackEntry = navController.currentBackStackEntry
         val savedStateHandle = currentBackStackEntry!!.savedStateHandle
-        savedStateHandle.getLiveData<Boolean>(OnboardingFragment.LOGIN_SUCCESSFUL)
+        savedStateHandle.getLiveData<Boolean>(OnboardingFragment.ONBOARDING_SUCCESSFUL)
             .observe(currentBackStackEntry) { success ->
                 if (!success) {
                     val startDestination = navController.graph.startDestination
@@ -97,38 +101,67 @@ class TabFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        if ((secureStorage.read("PREF_LOGIN").isNullOrEmpty()
-                    && secureStorage.read("PREF_PASSWORD").isNullOrEmpty())
-            || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                    && listOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.WRITE_CONTACTS
-            ).any { checkSelfPermission(requireContext(), it) != PERMISSION_GRANTED })
-            || !AccountUtils.isAccountCreated(requireContext())
-        ) {
-            findNavController().navigate(R.id.onboardingFragment)
-            return
-        }
 
-        realmUi = Realm.getDefaultInstance()
-
-        val adapter = ViewPagerAdapter(requireContext(), realmUi)
-        binding.pager.adapter = adapter
-
-        for (i in 0 until adapter.count) {
-            binding.tabLayout.addTab(binding.tabLayout.newTab().setText(adapter.getPageTitle(i)))
-        }
-        binding.tabLayout.tabGravity = TabLayout.GRAVITY_FILL
-        binding.pager.addOnPageChangeListener(TabLayout.TabLayoutOnPageChangeListener(binding.tabLayout))
-        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) {
-                binding.pager.currentItem = tab.position
+        binding.recyclerView.adapter = contactsAdapter
+        with(binding.tabLayout) {
+            tabViewModel.getTabs().forEach { tabTitle ->
+                addTab(newTab().setText(tabTitle))
             }
+            tabGravity = TabLayout.GRAVITY_FILL
+            addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+                override fun onTabSelected(tab: TabLayout.Tab) {
+                    tabViewModel.setSelectedTab(tab.position)
+                }
 
-            override fun onTabUnselected(tab: TabLayout.Tab) {}
+                override fun onTabUnselected(tab: TabLayout.Tab) {}
 
-            override fun onTabReselected(tab: TabLayout.Tab) {}
-        })
+                override fun onTabReselected(tab: TabLayout.Tab) {}
+            })
+        }
+
+        tabViewModel.data.observe(viewLifecycleOwner) {
+            contactsAdapter.submitList(it)
+            when (binding.tabLayout.selectedTabPosition) {
+                0 -> {
+                    contactsAdapter.onItemClickListener = { contactEntity ->
+                        findNavController().navigate(
+                            TabFragmentDirections.actionTabFragmentToFbPickerFragment(
+                                contactEntity.id
+                            )
+                        )
+                    }
+                }
+                1 -> {
+                    contactsAdapter.onItemClickListener = { contactEntity ->
+                        AlertDialog.Builder(requireContext())
+                            .setTitle(R.string.alert_cancel_auto_sync_title)
+                            .setMessage(R.string.alert_cancel_auto_sync_message)
+                            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
+                                tabViewModel.cancelAutoSync(contactEntity)
+                                dialogInterface.dismiss()
+                            }
+                            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
+                            .create()
+                            .show()
+                    }
+                }
+                2 -> {
+                    contactsAdapter.onItemClickListener = { contactEntity ->
+                        AlertDialog.Builder(requireContext())
+                            .setTitle(R.string.alert_release_bond_title)
+                            .setMessage(R.string.alert_release_bond_message)
+                            //TODO: make another dialog/preference remembering if app should remove photo automatically
+                            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
+                                tabViewModel.releaseBond(contactEntity)
+                                dialogInterface.dismiss()
+                            }
+                            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
+                            .create()
+                            .show()
+                    }
+                }
+            }
+        }
 
         showAdIfNeeded()
     }
@@ -176,11 +209,7 @@ class TabFragment : Fragment() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_sync -> {
-                ContentResolver.requestSync(
-                    AccountUtils.account,
-                    AccountUtils.CONTENT_AUTHORITY,
-                    Bundle()
-                )
+                accountManager.requestSync()
                 return true
             }
             R.id.menu_privacy_policy -> {
@@ -200,6 +229,10 @@ class TabFragment : Fragment() {
         val mask =
             ContentResolver.SYNC_OBSERVER_TYPE_ACTIVE or ContentResolver.SYNC_OBSERVER_TYPE_PENDING
         syncObserverHandle = ContentResolver.addStatusChangeListener(mask, syncStatusObserver)
+
+        if (!onboardingViewModel.hasPrerequisites()) {
+            findNavController().navigate(R.id.onboardingFragment)
+        }
     }
 
     override fun onPause() {
@@ -216,44 +249,5 @@ class TabFragment : Fragment() {
     override fun onDestroy() {
         realmUi.close()
         super.onDestroy()
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == REQUEST_FACEBOOK_PICKER) {
-            if (resultCode == Activity.RESULT_OK && data != null) {
-                val contactId = data.getStringExtra(FbPickerFragment.EXTRA_ID)
-                val contact = realmUi.where(Contact::class.java)
-                    .equalTo("id", contactId)
-                    .findFirst()
-                val friendId = data.getStringExtra(FbPickerFragment.EXTRA_RESULT_ID)
-                val friend = realmUi.where(Friend::class.java)
-                    .equalTo("id", friendId)
-                    .findFirst()
-                val sameNameFriends = realmUi.where(Friend::class.java)
-                    .equalTo("mName", friend!!.getName())
-                    .findAll()
-
-                realmUi.executeTransaction {
-                    contact!!.related = friend
-                    contact.synced = true
-                    contact.isManual = true
-                }
-                // TODO: Sync single
-
-                if (sameNameFriends.size > 1) {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle(R.string.problem)
-                        .setMessage(R.string.problem_message)
-                        .setPositiveButton(android.R.string.ok) { dialogInterface, _ -> dialogInterface.dismiss() }
-                        .create()
-                        .show()
-                }
-
-                Toast.makeText(requireContext(), R.string.sync_preference_saved, Toast.LENGTH_SHORT)
-                    .show()
-            }
-            return
-        }
-        super.onActivityResult(requestCode, resultCode, data)
     }
 }
