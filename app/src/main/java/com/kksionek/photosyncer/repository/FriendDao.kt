@@ -1,6 +1,7 @@
 package com.kksionek.photosyncer.repository
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import com.kksionek.photosyncer.model.FriendEntity
@@ -18,4 +19,7 @@ interface FriendDao {
 
     @Query("SELECT * FROM FriendEntity WHERE name = :name ORDER BY name")
     fun getFriendsWithName(name: String): Single<List<FriendEntity>>
+
+    @Delete
+    fun removeAllSync(vararg friendEntity: FriendEntity)
 }

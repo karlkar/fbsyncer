@@ -5,14 +5,17 @@ import android.content.Context
 import androidx.core.content.PermissionChecker
 import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.ViewModel
+import com.kksionek.photosyncer.repository.FriendRepository
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.reactivex.Single
 
 class OnboardingViewModel @ViewModelInject constructor(
     @ApplicationContext private val context: Context,
     private val secureStorage: SecureStorage,
-    private val accountManager: AccountManager
+    private val accountManager: AccountManager,
+    private val friendRepository: FriendRepository
 ) : ViewModel() {
 
     fun hasPrerequisites(): Boolean {
@@ -37,4 +40,8 @@ class OnboardingViewModel @ViewModelInject constructor(
 
     fun isAccountCreated(): Boolean =
         accountManager.isAccountCreated()
+
+    fun fbLogin(): Single<String> {
+        return friendRepository.fbLogin()
+    }
 }

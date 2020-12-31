@@ -1,21 +1,20 @@
 package com.kksionek.photosyncer
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
-
-import io.realm.Realm
-import io.realm.RealmConfiguration
+import javax.inject.Inject
 
 @HiltAndroidApp
-class SyncApplication : Application() {
+class SyncApplication : Application(), Configuration.Provider {
 
-    override fun onCreate() {
-        super.onCreate()
-        Realm.init(this)
-        val config = RealmConfiguration.Builder()
-            .name("photosync.realm")
-            .deleteRealmIfMigrationNeeded()
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override fun getWorkManagerConfiguration() =
+        Configuration.Builder()
+            .setWorkerFactory(workerFactory)
             .build()
-        Realm.setDefaultConfiguration(config)
-    }
+
 }

@@ -20,12 +20,10 @@ import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentOnboardingBinding
 import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.sync.AccountManager
-import com.kksionek.photosyncer.sync.SyncAdapter
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
-import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -41,9 +39,6 @@ class OnboardingFragment : Fragment() {
 
     @Inject
     lateinit var secureStorage: SecureStorage
-
-    @Inject
-    lateinit var okHttpClient: OkHttpClient
 
     @Inject
     lateinit var accountManager: AccountManager
@@ -108,10 +103,8 @@ class OnboardingFragment : Fragment() {
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
                         secureStorage.write("PREF_LOGIN", login)
                         secureStorage.write("PREF_PASSWORD", pass)
-                        SyncAdapter.fbLogin(
-                            okHttpClient,
-                            secureStorage
-                        )
+                        // TODO: Move more logic to ViewModel
+                        onboardingViewModel.fbLogin()
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(

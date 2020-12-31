@@ -7,7 +7,6 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.kksionek.photosyncer.R
-import com.kksionek.photosyncer.data.Person
 import com.kksionek.photosyncer.databinding.RowFriendsBinding
 import com.simplecityapps.recyclerview_fastscroll.views.FastScrollRecyclerView
 import com.squareup.picasso.Picasso

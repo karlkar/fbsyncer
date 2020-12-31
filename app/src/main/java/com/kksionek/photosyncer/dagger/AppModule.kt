@@ -54,4 +54,12 @@ class AppModule {
     @Provides
     fun provideFriendDao(database: MappingDatabase): FriendDao =
         database.friendDao()
+
+    @Provides
+    fun provideContactsRepository(contactsRepositoryImpl: ContactsRepositoryImpl): ContactsRepository =
+        contactsRepositoryImpl
+
+    @Provides
+    fun provideFriendRepository(friendRepositoryImpl: FriendRepositoryImpl): FriendRepository =
+        friendRepositoryImpl
 }

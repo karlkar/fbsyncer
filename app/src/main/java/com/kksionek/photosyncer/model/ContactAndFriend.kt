@@ -9,5 +9,5 @@ data class ContactAndFriend(
         parentColumn = "relatedFriend",
         entityColumn = "id"
     )
-    val friendEntity: FriendEntity
+    val friendEntity: FriendEntity?
 )

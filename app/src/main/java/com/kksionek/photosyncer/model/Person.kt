@@ -1,7 +1,7 @@
-package com.kksionek.photosyncer.data
+package com.kksionek.photosyncer.model
 
 interface Person {
-    val id: Int
+    val id: Long
     val name: String
     val photo: String
 }

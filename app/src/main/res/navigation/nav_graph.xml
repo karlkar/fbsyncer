@@ -25,7 +25,7 @@
 
         <argument
             android:name="contactId"
-            app:argType="integer"
+            app:argType="long"
             app:nullable="false" />
     </fragment>
 </navigation>

@@ -48,7 +48,7 @@ class FbPickerViewModel @ViewModelInject constructor(
             })
     }
 
-    fun bindFriend(contactId: Int, friendEntity: FriendEntity) {
+    fun bindFriend(contactId: Long, friendEntity: FriendEntity) {
         disposables.add(
             contactDao.bindFriend(contactId, friendEntity.id)
                 .andThen(friendDao.getFriendsWithName(friendEntity.name))

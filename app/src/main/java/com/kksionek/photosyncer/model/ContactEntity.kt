@@ -2,15 +2,13 @@ package com.kksionek.photosyncer.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.kksionek.photosyncer.data.Person
 
 @Entity
 data class ContactEntity(
-    @PrimaryKey override val id: Int,
+    @PrimaryKey override val id: Long,
     override val name: String,
     override val photo: String,
-    val relatedFriend: Int? = null,
+    val relatedFriend: Long? = null,
     val synced: Boolean = false,
-    val old: Boolean = false,
-    val isManual: Boolean
+    val isManual: Boolean = false
 ) : Person
