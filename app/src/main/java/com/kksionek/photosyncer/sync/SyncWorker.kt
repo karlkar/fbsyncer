@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -17,7 +18,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
 import androidx.hilt.Assisted
 import androidx.hilt.work.WorkerInject
-import androidx.preference.PreferenceManager
 import androidx.work.RxWorker
 import androidx.work.WorkerParameters
 import com.kksionek.photosyncer.R
@@ -27,7 +27,7 @@ import com.kksionek.photosyncer.model.FriendEntity
 import com.kksionek.photosyncer.repository.ContactsRepository
 import com.kksionek.photosyncer.repository.FriendRepository
 import com.kksionek.photosyncer.view.MainActivity
-import com.kksionek.photosyncer.view.TabFragment
+import com.kksionek.photosyncer.viewmodel.TabViewModel
 import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
@@ -36,6 +36,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class SyncWorker @WorkerInject constructor(
@@ -43,7 +44,8 @@ class SyncWorker @WorkerInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val contactsRepository: ContactsRepository,
     private val friendRepository: FriendRepository,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val sharedPreferences: SharedPreferences
 ) : RxWorker(appContext, workerParams) {
 
     companion object {
@@ -200,24 +202,27 @@ class SyncWorker @WorkerInject constructor(
         }
     }
 
+    // TODO: Convert to ongoing notification
     private fun showNotification() {
-        val sharedPrefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-        var lastAd = sharedPrefs.getLong(TabFragment.PREF_LAST_AD, 0)
-
-        if (lastAd == 0L) {
-            lastAd = System.currentTimeMillis()
-            sharedPrefs.edit {
-                putLong(TabFragment.PREF_LAST_AD, lastAd)
+        val lastAdTime = sharedPreferences.getLong(TabViewModel.PREF_LAST_AD, 0).let {
+            if (it == 0L) {
+                val lastAdTime = Instant.now().toEpochMilli()
+                sharedPreferences.edit {
+                    putLong(TabViewModel.PREF_LAST_AD, lastAdTime)
+                }
+                lastAdTime
+            } else {
+                it
             }
         }
 
-        val diff = System.currentTimeMillis() - lastAd
+        val diff = Instant.now().toEpochMilli() - lastAdTime
         val days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
         if (days < 6) return
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtra("INTENT_AD", true)
+            putExtra(TabViewModel.INTENT_EXTRA_AD, true)
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,

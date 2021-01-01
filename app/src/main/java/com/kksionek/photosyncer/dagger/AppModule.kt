@@ -1,6 +1,8 @@
 package com.kksionek.photosyncer.dagger
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kksionek.photosyncer.repository.*
@@ -68,4 +70,8 @@ class AppModule {
     @Provides
     fun provideWorkManagerController(workManagerControllerImpl: WorkManagerControllerImpl): WorkManagerController =
         workManagerControllerImpl
+
+    @Provides
+    fun provideSharedPreferences(@ApplicationContext appContext: Context): SharedPreferences =
+        PreferenceManager.getDefaultSharedPreferences(appContext)
 }

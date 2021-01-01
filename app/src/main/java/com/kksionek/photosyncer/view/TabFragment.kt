@@ -5,13 +5,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.*
 import androidx.appcompat.app.AlertDialog
-import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
-import androidx.preference.PreferenceManager
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.InterstitialAd
@@ -20,17 +18,13 @@ import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentTabBinding
 import com.kksionek.photosyncer.model.ContactEntity
 import com.kksionek.photosyncer.model.ContactsAdapter
+import com.kksionek.photosyncer.model.OnItemClickListener
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import com.kksionek.photosyncer.viewmodel.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.concurrent.TimeUnit
 
 @AndroidEntryPoint
 class TabFragment : Fragment() {
-
-    companion object {
-        const val PREF_LAST_AD = "LAST_AD"
-    }
 
     private var _binding: FragmentTabBinding? = null
     private val binding get() = _binding!!
@@ -40,6 +34,10 @@ class TabFragment : Fragment() {
 
     private val tabViewModel: TabViewModel by viewModels()
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
+
+    private val onAdapterItemClickListener: OnItemClickListener<ContactEntity> = { contactEntity ->
+        tabViewModel.onItemClicked(contactEntity)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +71,10 @@ class TabFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.recyclerView.adapter = contactsAdapter
+        binding.recyclerView.adapter = contactsAdapter.also {
+            it.onItemClickListener = onAdapterItemClickListener
+        }
+
         with(binding.tabLayout) {
             tabViewModel.getTabs().forEach { tabTitle ->
                 addTab(newTab().setText(tabTitle))
@@ -90,92 +91,90 @@ class TabFragment : Fragment() {
             })
         }
 
-        tabViewModel.isSyncRunning.observe(viewLifecycleOwner) {
-            if (it) {
-                menuItemSyncCtrl.startAnimation()
-            } else {
-                menuItemSyncCtrl.endAnimation()
-            }
-        }
+        initObservers()
 
-        tabViewModel.data.observe(viewLifecycleOwner) {
-            contactsAdapter.submitList(it)
-            when (binding.tabLayout.selectedTabPosition) {
-                0 -> {
-                    contactsAdapter.onItemClickListener = { contactEntity ->
-                        findNavController().navigate(
-                            TabFragmentDirections.actionTabFragmentToFbPickerFragment(
-                                contactEntity.id
-                            )
-                        )
-                    }
-                }
-                1 -> {
-                    contactsAdapter.onItemClickListener = { contactEntity ->
-                        AlertDialog.Builder(requireContext())
-                            .setTitle(R.string.alert_cancel_auto_sync_title)
-                            .setMessage(R.string.alert_cancel_auto_sync_message)
-                            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
-                                tabViewModel.cancelAutoSync(contactEntity)
-                                dialogInterface.dismiss()
-                            }
-                            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
-                            .create()
-                            .show()
-                    }
-                }
-                2 -> {
-                    contactsAdapter.onItemClickListener = { contactEntity ->
-                        AlertDialog.Builder(requireContext())
-                            .setTitle(R.string.alert_release_bond_title)
-                            .setMessage(R.string.alert_release_bond_message)
-                            //TODO: make another dialog/preference remembering if app should remove photo automatically
-                            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
-                                tabViewModel.releaseBond(contactEntity)
-                                dialogInterface.dismiss()
-                            }
-                            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
-                            .create()
-                            .show()
-                    }
-                }
-            }
-        }
-
-        showAdIfNeeded()
+        tabViewModel.checkAd(requireActivity().intent)
     }
 
-    private fun showAdIfNeeded() {
-        val lastAd = PreferenceManager.getDefaultSharedPreferences(requireContext())
-            .getLong(PREF_LAST_AD, 0)
-        if (lastAd == 0L) {
-            PreferenceManager.getDefaultSharedPreferences(requireContext()).edit {
-                putLong(PREF_LAST_AD, System.currentTimeMillis())
-            }
-        }
-
-        val diff = System.currentTimeMillis() - lastAd
-        val days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
-
-        if (days >= 6 || requireActivity().intent.getBooleanExtra("INTENT_AD", false)) {
-            val interstitialAd = InterstitialAd(requireContext()).apply {
-                adUnitId = getString(R.string.interstitial_ad_unit_id)
-                adListener = object : AdListener() {
-                    override fun onAdLoaded() {
-                        PreferenceManager.getDefaultSharedPreferences(requireContext()).edit {
-                            putLong(PREF_LAST_AD, System.currentTimeMillis())
-                        }
-                        show()
-                    }
-
-                    override fun onAdFailedToLoad(errorCode: Int) {}
-
-                    override fun onAdClosed() {}
+    private fun initObservers() {
+        with(tabViewModel) {
+            isSyncRunning.observe(viewLifecycleOwner) { running ->
+                if (running) {
+                    menuItemSyncCtrl.startAnimation()
+                } else {
+                    menuItemSyncCtrl.endAnimation()
                 }
             }
-            val adRequest = AdRequest.Builder().build()
-            interstitialAd.loadAd(adRequest)
+
+            data.observe(viewLifecycleOwner) {
+                contactsAdapter.submitList(it)
+            }
+
+            launchPickAFriend.observe(viewLifecycleOwner) { id ->
+                id?.let { pickAFriend(it) }
+            }
+
+            showCancelAutoSyncDialog.observe(viewLifecycleOwner) { id ->
+                id?.let { showCancelAutoSyncConfirmation(it) }
+            }
+
+            showReleaseManualBondConfirmation.observe(viewLifecycleOwner) { id ->
+                id?.let { showReleaseManualBondConfirmation(it) }
+            }
+
+            showAd.observe(viewLifecycleOwner) {
+                val interstitialAd = InterstitialAd(requireContext()).apply {
+                    adUnitId = getString(R.string.interstitial_ad_unit_id)
+                    adListener = object : AdListener() {
+                        override fun onAdLoaded() {
+                            tabViewModel.onAdLoaded()
+                            show()
+                        }
+
+                        override fun onAdFailedToLoad(errorCode: Int) {}
+
+                        override fun onAdClosed() {}
+                    }
+                }
+                val adRequest = AdRequest.Builder().build()
+                interstitialAd.loadAd(adRequest)
+            }
+
+            setSelectedTab(0)
         }
+    }
+
+    private fun pickAFriend(contactEntityId: Long) {
+        findNavController().navigate(
+            TabFragmentDirections.actionTabFragmentToFbPickerFragment(contactEntityId)
+        )
+    }
+
+    private fun showCancelAutoSyncConfirmation(contactEntityId: Long) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.alert_cancel_auto_sync_title)
+            .setMessage(R.string.alert_cancel_auto_sync_message)
+            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
+                tabViewModel.cancelAutoSync(contactEntityId)
+                dialogInterface.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
+            .create()
+            .show()
+    }
+
+    private fun showReleaseManualBondConfirmation(contactEntityId: Long) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.alert_release_bond_title)
+            .setMessage(R.string.alert_release_bond_message)
+            //TODO: make another dialog/preference remembering if app should remove photo automatically
+            .setPositiveButton(android.R.string.ok) { dialogInterface, _ ->
+                tabViewModel.releaseBond(contactEntityId)
+                dialogInterface.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialogInterface, _ -> dialogInterface.dismiss() }
+            .create()
+            .show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
