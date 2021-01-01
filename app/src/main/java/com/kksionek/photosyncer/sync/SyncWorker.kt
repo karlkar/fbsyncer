@@ -13,8 +13,8 @@ import android.os.Build
 import android.provider.ContactsContract
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
-import androidx.core.content.getSystemService
 import androidx.hilt.Assisted
 import androidx.hilt.work.WorkerInject
 import androidx.preference.PreferenceManager
@@ -28,14 +28,14 @@ import com.kksionek.photosyncer.repository.ContactsRepository
 import com.kksionek.photosyncer.repository.FriendRepository
 import com.kksionek.photosyncer.view.MainActivity
 import com.kksionek.photosyncer.view.TabFragment
+import io.reactivex.Completable
+import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class SyncWorker @WorkerInject constructor(
@@ -49,8 +49,6 @@ class SyncWorker @WorkerInject constructor(
     companion object {
         private const val TAG = "SyncWorker"
     }
-
-    private val threadPool = Executors.newFixedThreadPool(2)
 
     private lateinit var notificationChannel: NotificationChannel
 
@@ -87,131 +85,117 @@ class SyncWorker @WorkerInject constructor(
         return null
     }
 
-    private fun performSync() {
-        val callables = mutableListOf<Callable<Unit>>()
-        val contacts = contactsRepository.getAllContactsAndFriends().blockingGet()
-
-        // All contacts in database are new => they have synced set to false
-        //        for (Contact contact : contacts)
-        //            contact.setSynced(false);
-        //        for (Friend friend : friends)
-        //            friend.setSynced(false);
-
-        for (contact in contacts) {
-            if (contact.contactEntity.isManual) {
-                if (contact.friendEntity != null) {
-                    syncToRelated(callables, contact, true)
-                }
-            } else {
-                val sameNameFriends =
-                    friendRepository.getFriendsWithName(contact.contactEntity.name).blockingGet()
-                if (sameNameFriends.size == 1) {
-                    contactsRepository.bindFriend(
-                        contact.contactEntity.id,
-                        sameNameFriends.first().id
-                    ).blockingAwait()
-                    syncToRelated(callables, contact, false)
-                } else {
-                    if (sameNameFriends.isEmpty()) {
-                        Log.d(
-                            TAG,
-                            "performSync: [${contact.contactEntity.name}] Friend doesn't exist on social network."
-                        )
+    private fun performSync(): Completable {
+        return contactsRepository.getAllContactsAndFriends()
+            .flatMapObservable { Observable.fromIterable(it) }
+            .map { contact ->
+                if (contact.contactEntity.isManual) {
+                    if (contact.friendEntity != null) {
+                        syncToRelated(contact, true)
                     } else {
-                        Log.d(
-                            TAG,
-                            "performSync: [${contact.contactEntity.name}] Friend exists multiple times and connot be synced automatically."
-                        )
+                        Completable.complete()
                     }
-                    contactsRepository.setSynced(
-                        contact.contactEntity.id,
-                        synced = false,
-                        manual = false
-                    ).blockingAwait()
+                } else {
+                    friendRepository.getFriendsWithName(contact.contactEntity.name)
+                        .flatMapCompletable { sameNameFriends ->
+                            if (sameNameFriends.size == 1) {
+                                contactsRepository.bindFriend(
+                                    contact.contactEntity.id,
+                                    sameNameFriends.first().id
+                                ).andThen(syncToRelated(contact, false))
+                            } else {
+                                if (sameNameFriends.isEmpty()) {
+                                    Log.d(
+                                        TAG,
+                                        "performSync: [${contact.contactEntity.name}] doesn't exist on fb."
+                                    )
+                                } else {
+                                    Log.d(
+                                        TAG,
+                                        "performSync: [${contact.contactEntity.name}] exists multiple times on fb and cannot be synced automatically."
+                                    )
+                                }
+                                contactsRepository.setSynced(
+                                    contact.contactEntity.id,
+                                    synced = false,
+                                    manual = false
+                                )
+                            }
+                        }
                 }
-            }
-        }
-
-        try {
-            threadPool.invokeAll(callables)
-        } catch (e: InterruptedException) {
-            e.printStackTrace()
-        }
+            }.ignoreElements()
     }
 
     private fun syncToRelated(
-        callables: MutableList<Callable<Unit>>,
         contact: ContactAndFriend,
         manual: Boolean
-    ) {
+    ): Completable {
         if (manual) {
-            Log.d(
-                TAG,
-                "syncToRelated: [${contact.contactEntity.name}] - syncing using manual settings."
-            )
+            Log.d(TAG, "syncToRelated: [${contact.contactEntity.name}] - manual settings.")
         } else {
-            Log.d(
-                TAG,
-                "syncToRelated: [${contact.contactEntity.name}] - syncing using auto settings."
-            )
+            Log.d(TAG, "syncToRelated: [${contact.contactEntity.name}] - auto settings.")
         }
-        callables.add(Callable {
+        return contactsRepository.setSynced(
+            contactId = contact.contactEntity.id,
+            synced = true,
+            manual = manual
+        ).andThen(
             setContactPhoto(
                 contact.contactEntity.id,
                 contact.friendEntity!!.photo
             )
-        })
-        contactsRepository.setSynced(
-            contact.contactEntity.id,
-            synced = true,
-            manual
-        ).blockingAwait()
+        )
     }
 
-    private fun setContactPhoto(rawContactId: Long, photo: String) {
-        val bitmap = getBitmapFromURL(photo) ?: return
+    private fun setContactPhoto(rawContactId: Long, photo: String): Completable {
+        val bitmap = getBitmapFromURL(photo) ?: return Completable.complete()
 
-        ByteArrayOutputStream().use { stream ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-            val photoData = stream.toByteArray()
-            val values = ContentValues().apply {
-                put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-                put(ContactsContract.Data.IS_SUPER_PRIMARY, 1)
-                put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoData)
-                put(
-                    ContactsContract.Data.MIMETYPE,
-                    ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
-                )
-            }
-            Log.d(TAG, "setContactPhoto: id = $rawContactId")
+        return Completable.fromCallable {
+            ByteArrayOutputStream().use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                val photoData = stream.toByteArray()
+                val values = ContentValues().apply {
+                    put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                    put(ContactsContract.Data.IS_SUPER_PRIMARY, 1)
+                    put(ContactsContract.CommonDataKinds.Photo.PHOTO, photoData)
+                    put(
+                        ContactsContract.Data.MIMETYPE,
+                        ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE
+                    )
+                }
+                Log.d(TAG, "setContactPhoto: id = $rawContactId")
 
-            var photoRow = -1
-            val where =
-                "${ContactsContract.Data.RAW_CONTACT_ID} = $rawContactId AND ${ContactsContract.Data.MIMETYPE} =='${ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE}'"
-            applicationContext.contentResolver.query(
-                ContactsContract.Data.CONTENT_URI,
-                arrayOf(ContactsContract.Contacts.Data._ID),
-                where,
-                null,
-                null
-            ).use {
-                it?.let { cursor ->
-                    if (cursor.moveToFirst()) {
-                        photoRow = cursor.getInt(0)
+                var photoRow = -1
+                val where =
+                    "${ContactsContract.Data.RAW_CONTACT_ID} = $rawContactId AND ${ContactsContract.Data.MIMETYPE} =='${ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE}'"
+                applicationContext.contentResolver.query(
+                    ContactsContract.Data.CONTENT_URI,
+                    arrayOf(ContactsContract.Contacts.Data._ID),
+                    where,
+                    null,
+                    null
+                ).use {
+                    it?.let { cursor ->
+                        if (cursor.moveToFirst()) {
+                            photoRow = cursor.getInt(0)
+                        }
                     }
                 }
-            }
 
-            if (photoRow >= 0) {
-                applicationContext.contentResolver.update(
-                    ContactsContract.Data.CONTENT_URI,
-                    values,
-                    "${ContactsContract.Data._ID} = $photoRow",
-                    null
-                )
-            } else {
-                Log.d(TAG, "setContactPhoto: INSERT $rawContactId")
-                applicationContext.contentResolver.insert(ContactsContract.Data.CONTENT_URI, values)
+                if (photoRow >= 0) {
+                    applicationContext.contentResolver.update(
+                        ContactsContract.Data.CONTENT_URI,
+                        values,
+                        "${ContactsContract.Data._ID} = $photoRow",
+                        null
+                    )
+                } else {
+                    Log.d(TAG, "setContactPhoto: INSERT $rawContactId")
+                    applicationContext.contentResolver.insert(
+                        ContactsContract.Data.CONTENT_URI,
+                        values
+                    )
+                }
             }
         }
     }
@@ -229,10 +213,7 @@ class SyncWorker @WorkerInject constructor(
 
         val diff = System.currentTimeMillis() - lastAd
         val days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
-
-        if (days < 6) {
-            return
-        }
+        if (days < 6) return
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -245,7 +226,7 @@ class SyncWorker @WorkerInject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val notificationManager: NotificationManager? = applicationContext.getSystemService()
+        val notificationManager = NotificationManagerCompat.from(applicationContext)
         val notificationChannelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (::notificationChannel.isInitialized) {
                 notificationChannel = NotificationChannel(
@@ -254,17 +235,14 @@ class SyncWorker @WorkerInject constructor(
                     NotificationManager.IMPORTANCE_HIGH
                 )
                 notificationChannel.enableLights(true)
-                notificationManager?.createNotificationChannel(notificationChannel)
+                notificationManager.createNotificationChannel(notificationChannel)
             }
             notificationChannel.id
         } else {
             ""
         }
-        val builder = NotificationCompat.Builder(
-            applicationContext,
-            notificationChannelId
-        )
-        builder.setSmallIcon(R.mipmap.ic_launcher)
+        NotificationCompat.Builder(applicationContext, notificationChannelId)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(applicationContext.getString(R.string.app_name))
             .setContentText(applicationContext.getString(R.string.notification_synchronisation_done))
             .setAutoCancel(true)
@@ -276,6 +254,6 @@ class SyncWorker @WorkerInject constructor(
             )
             .setContentIntent(pendingIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        notificationManager?.notify(0, builder.build())
+            .also { notificationManager.notify(0, it.build()) }
     }
 }

@@ -7,21 +7,18 @@ import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.ViewModel
 import com.kksionek.photosyncer.repository.FriendRepository
 import com.kksionek.photosyncer.repository.SecureStorage
-import com.kksionek.photosyncer.sync.AccountManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.Single
 
 class OnboardingViewModel @ViewModelInject constructor(
     @ApplicationContext private val context: Context,
     private val secureStorage: SecureStorage,
-    private val accountManager: AccountManager,
     private val friendRepository: FriendRepository
 ) : ViewModel() {
 
     fun hasPrerequisites(): Boolean {
         return isFbAccountSetUp()
                 || areContactsPermissionsGranted()
-                || isAccountCreated()
     }
 
     fun isFbAccountSetUp(): Boolean {
@@ -37,9 +34,6 @@ class OnboardingViewModel @ViewModelInject constructor(
                     PermissionChecker.PERMISSION_GRANTED
         }
     }
-
-    fun isAccountCreated(): Boolean =
-        accountManager.isAccountCreated()
 
     fun fbLogin(): Single<String> {
         return friendRepository.fbLogin()

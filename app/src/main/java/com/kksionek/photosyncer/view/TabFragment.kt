@@ -1,6 +1,5 @@
 package com.kksionek.photosyncer.view
 
-import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -21,14 +20,10 @@ import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentTabBinding
 import com.kksionek.photosyncer.model.ContactEntity
 import com.kksionek.photosyncer.model.ContactsAdapter
-import com.kksionek.photosyncer.repository.SecureStorage
-import com.kksionek.photosyncer.sync.AccountManager
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import com.kksionek.photosyncer.viewmodel.TabViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import io.realm.Realm
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class TabFragment : Fragment() {
@@ -40,34 +35,10 @@ class TabFragment : Fragment() {
     private var _binding: FragmentTabBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var realmUi: Realm
     private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
-
-    private val tabViewModel: TabViewModel by viewModels()
-
     private val contactsAdapter = ContactsAdapter<ContactEntity>()
 
-    @Inject
-    lateinit var secureStorage: SecureStorage
-
-    @Inject
-    lateinit var accountManager: AccountManager
-
-    private val syncStatusObserver = { _: Int ->
-        requireActivity().runOnUiThread {
-            val syncActive = accountManager.isSyncActive()
-            val syncPending = accountManager.isSyncPending()
-
-            //Log.d(TAG, "Event received: " + (syncActive || syncPending));
-            if (syncActive || syncPending) {
-                menuItemSyncCtrl.startAnimation()
-            } else {
-                menuItemSyncCtrl.endAnimation()
-            }
-        }
-    }
-    private var syncObserverHandle: Any? = null
-
+    private val tabViewModel: TabViewModel by viewModels()
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,6 +88,14 @@ class TabFragment : Fragment() {
 
                 override fun onTabReselected(tab: TabLayout.Tab) {}
             })
+        }
+
+        tabViewModel.isSyncRunning.observe(viewLifecycleOwner) {
+            if (it) {
+                menuItemSyncCtrl.startAnimation()
+            } else {
+                menuItemSyncCtrl.endAnimation()
+            }
         }
 
         tabViewModel.data.observe(viewLifecycleOwner) {
@@ -209,7 +188,7 @@ class TabFragment : Fragment() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_sync -> {
-                accountManager.requestSync()
+                tabViewModel.runSync()
                 return true
             }
             R.id.menu_privacy_policy -> {
@@ -224,30 +203,22 @@ class TabFragment : Fragment() {
         return super.onOptionsItemSelected(item)
     }
 
+    override fun onStart() {
+        super.onStart()
+
+        tabViewModel.scheduleSync()
+    }
+
     override fun onResume() {
         super.onResume()
-        val mask =
-            ContentResolver.SYNC_OBSERVER_TYPE_ACTIVE or ContentResolver.SYNC_OBSERVER_TYPE_PENDING
-        syncObserverHandle = ContentResolver.addStatusChangeListener(mask, syncStatusObserver)
 
         if (!onboardingViewModel.hasPrerequisites()) {
             findNavController().navigate(R.id.onboardingFragment)
         }
     }
 
-    override fun onPause() {
-        ContentResolver.removeStatusChangeListener(syncObserverHandle)
-        syncObserverHandle = null
-        super.onPause()
-    }
-
     override fun onDestroyView() {
         _binding = null
         super.onDestroyView()
-    }
-
-    override fun onDestroy() {
-        realmUi.close()
-        super.onDestroy()
     }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kksionek.photosyncer.repository.*
+import com.kksionek.photosyncer.sync.WorkManagerController
+import com.kksionek.photosyncer.sync.WorkManagerControllerImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -62,4 +64,8 @@ class AppModule {
     @Provides
     fun provideFriendRepository(friendRepositoryImpl: FriendRepositoryImpl): FriendRepository =
         friendRepositoryImpl
+
+    @Provides
+    fun provideWorkManagerController(workManagerControllerImpl: WorkManagerControllerImpl): WorkManagerController =
+        workManagerControllerImpl
 }

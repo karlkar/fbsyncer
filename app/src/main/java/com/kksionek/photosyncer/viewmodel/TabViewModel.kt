@@ -7,18 +7,22 @@ import androidx.lifecycle.ViewModel
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.model.ContactEntity
 import com.kksionek.photosyncer.repository.ContactDao
+import com.kksionek.photosyncer.sync.WorkManagerController
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
 class TabViewModel @ViewModelInject constructor(
-    private val contactDao: ContactDao
+    private val contactDao: ContactDao,
+    private val workManagerController: WorkManagerController
 ) : ViewModel() {
 
     private val disposables = CompositeDisposable()
 
     private val _data = MutableLiveData<List<ContactEntity>>()
     val data: LiveData<List<ContactEntity>> = _data
+
+    val isSyncRunning: LiveData<Boolean> = workManagerController.isSyncRunning
 
     fun getTabs(): List<Int> {
         return listOf(
@@ -44,6 +48,14 @@ class TabViewModel @ViewModelInject constructor(
                 _data.value = contacts
             }
         )
+    }
+
+    fun runSync() {
+        workManagerController.runSync()
+    }
+
+    fun scheduleSync() {
+        workManagerController.scheduleSync()
     }
 
     override fun onCleared() {

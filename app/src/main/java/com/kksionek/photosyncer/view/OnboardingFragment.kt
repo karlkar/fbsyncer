@@ -5,7 +5,6 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,12 +13,10 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.SavedStateHandle
-import androidx.navigation.findNavController
 import androidx.navigation.fragment.findNavController
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentOnboardingBinding
 import com.kksionek.photosyncer.repository.SecureStorage
-import com.kksionek.photosyncer.sync.AccountManager
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -33,15 +30,10 @@ class OnboardingFragment : Fragment() {
         const val ONBOARDING_SUCCESSFUL: String = "ONBOARDING_SUCCESSFUL"
 
         private const val REQUEST_PERMISSIONS_CONTACTS = 4444
-
-        private const val TAG = "OnboardingFragment"
     }
 
     @Inject
     lateinit var secureStorage: SecureStorage
-
-    @Inject
-    lateinit var accountManager: AccountManager
 
     private var _binding: FragmentOnboardingBinding? = null
     private val binding get() = _binding!!
@@ -110,7 +102,7 @@ class OnboardingFragment : Fragment() {
                             .subscribe(
                                 {
                                     binding.loginProgress.visibility = View.GONE
-                                    showSyncScreen()
+                                    markOnboardingSuccessful()
                                 },
                                 {
                                     showProgress(false)
@@ -132,7 +124,7 @@ class OnboardingFragment : Fragment() {
                 }
             }
         } else {
-            showSyncScreen()
+            markOnboardingSuccessful()
         }
     }
 
@@ -160,24 +152,9 @@ class OnboardingFragment : Fragment() {
             })
     }
 
-    private fun showSyncScreen() {
-        binding.questionTextView.setText(R.string.activity_main_prerequisites_fulfilled_message)
-        binding.questionButton.apply {
-            setText(R.string.activity_main_button_sync)
-            setOnClickListener {
-                isEnabled = false
-                if (!accountManager.isAccountCreated() && accountManager.createAccount() == null) {
-                    Log.e(
-                        TAG,
-                        "showSyncScreen: I couldn't create a new account. That's strange"
-                    )
-                } else {
-                    accountManager.requestSync()
-                    savedStateHandle.set(ONBOARDING_SUCCESSFUL, true)
-                    findNavController().popBackStack()
-                }
-            }
-        }
+    private fun markOnboardingSuccessful() {
+        savedStateHandle.set(ONBOARDING_SUCCESSFUL, true)
+        findNavController().popBackStack()
     }
 
     override fun onRequestPermissionsResult(
