@@ -3,12 +3,12 @@ package com.kksionek.photosyncer.view
 import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.SavedStateHandle
@@ -27,8 +27,6 @@ class OnboardingFragment : Fragment() {
 
     companion object {
         const val ONBOARDING_SUCCESSFUL = "ONBOARDING_SUCCESSFUL"
-
-        private const val REQUEST_PERMISSIONS_CONTACTS = 4444
     }
 
     @Inject
@@ -40,6 +38,19 @@ class OnboardingFragment : Fragment() {
     private val onboardingViewModel: OnboardingViewModel by activityViewModels()
 
     private lateinit var savedStateHandle: SavedStateHandle
+
+    private val requestContactsPermissions =
+        prepareCall(ActivityResultContracts.RequestPermissions()) { grantResults ->
+            if (grantResults.size == 2 && grantResults.all { it.value }) {
+                showFbLoginScreen()
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    R.string.activity_main_permission_rejected_message,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -65,12 +76,11 @@ class OnboardingFragment : Fragment() {
             binding.questionButton.apply {
                 setText(R.string.activity_main_button_grant_contacts_access)
                 setOnClickListener {
-                    requestPermissions(
+                    requestContactsPermissions.launch(
                         arrayOf(
                             Manifest.permission.READ_CONTACTS,
                             Manifest.permission.WRITE_CONTACTS
-                        ),
-                        REQUEST_PERMISSIONS_CONTACTS
+                        )
                     )
                 }
             }
@@ -155,28 +165,6 @@ class OnboardingFragment : Fragment() {
     private fun markOnboardingSuccessful() {
         savedStateHandle.set(ONBOARDING_SUCCESSFUL, true)
         findNavController().popBackStack()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        if (requestCode == REQUEST_PERMISSIONS_CONTACTS) {
-            if (grantResults.size == 2
-                && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            ) {
-                showFbLoginScreen()
-            } else {
-                Toast.makeText(
-                    requireContext(),
-                    R.string.activity_main_permission_rejected_message,
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        }
     }
 
     override fun onDestroyView() {
