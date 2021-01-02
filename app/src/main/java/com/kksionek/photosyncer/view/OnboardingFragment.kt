@@ -9,7 +9,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.SavedStateHandle
@@ -27,7 +26,7 @@ import javax.inject.Inject
 class OnboardingFragment : Fragment() {
 
     companion object {
-        const val ONBOARDING_SUCCESSFUL: String = "ONBOARDING_SUCCESSFUL"
+        const val ONBOARDING_SUCCESSFUL = "ONBOARDING_SUCCESSFUL"
 
         private const val REQUEST_PERMISSIONS_CONTACTS = 4444
     }
@@ -66,8 +65,7 @@ class OnboardingFragment : Fragment() {
             binding.questionButton.apply {
                 setText(R.string.activity_main_button_grant_contacts_access)
                 setOnClickListener {
-                    ActivityCompat.requestPermissions(
-                        requireActivity(),
+                    requestPermissions(
                         arrayOf(
                             Manifest.permission.READ_CONTACTS,
                             Manifest.permission.WRITE_CONTACTS
@@ -93,10 +91,8 @@ class OnboardingFragment : Fragment() {
                     val pass = binding.fbPass.text.toString()
 
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
-                        secureStorage.write("PREF_LOGIN", login)
-                        secureStorage.write("PREF_PASSWORD", pass)
                         // TODO: Move more logic to ViewModel
-                        onboardingViewModel.fbLogin()
+                        onboardingViewModel.fbLogin(login, pass)
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(
@@ -131,25 +127,29 @@ class OnboardingFragment : Fragment() {
     private fun showProgress(show: Boolean) {
         val shortAnimTime = resources.getInteger(android.R.integer.config_shortAnimTime)
 
-        binding.fbLoginForm.visibility = if (show) View.GONE else View.VISIBLE
-        binding.fbLoginForm.animate()
-            .setDuration(shortAnimTime.toLong())
-            .alpha((if (show) 0 else 1).toFloat())
-            .setListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    binding.fbLoginForm.visibility = if (show) View.GONE else View.VISIBLE
-                }
-            })
+        with(binding.fbLoginForm) {
+            visibility = if (show) View.GONE else View.VISIBLE
+            animate()
+                .setDuration(shortAnimTime.toLong())
+                .alpha((if (show) 0 else 1).toFloat())
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        visibility = if (show) View.GONE else View.VISIBLE
+                    }
+                })
+        }
 
-        binding.loginProgress.visibility = if (show) View.VISIBLE else View.GONE
-        binding.loginProgress.animate()
-            .setDuration(shortAnimTime.toLong())
-            .alpha((if (show) 1 else 0).toFloat())
-            .setListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    binding.loginProgress.visibility = if (show) View.VISIBLE else View.GONE
-                }
-            })
+        with(binding.loginProgress) {
+            visibility = if (show) View.VISIBLE else View.GONE
+            animate()
+                .setDuration(shortAnimTime.toLong())
+                .alpha((if (show) 1 else 0).toFloat())
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        visibility = if (show) View.VISIBLE else View.GONE
+                    }
+                })
+        }
     }
 
     private fun markOnboardingSuccessful() {

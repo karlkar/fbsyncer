@@ -7,6 +7,8 @@ import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.ViewModel
 import com.kksionek.photosyncer.repository.FriendRepository
 import com.kksionek.photosyncer.repository.SecureStorage
+import com.kksionek.photosyncer.repository.SecureStorage.Companion.PREF_LOGIN
+import com.kksionek.photosyncer.repository.SecureStorage.Companion.PREF_PASSWORD
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.reactivex.Single
 
@@ -16,14 +18,11 @@ class OnboardingViewModel @ViewModelInject constructor(
     private val friendRepository: FriendRepository
 ) : ViewModel() {
 
-    fun hasPrerequisites(): Boolean {
-        return isFbAccountSetUp()
-                || areContactsPermissionsGranted()
-    }
+    fun hasPrerequisites(): Boolean =
+        isFbAccountSetUp() && areContactsPermissionsGranted()
 
-    fun isFbAccountSetUp(): Boolean {
-        return listOf("PREF_LOGIN", "PREF_PASSWORD").none { secureStorage.read(it).isNullOrEmpty() }
-    }
+    fun isFbAccountSetUp(): Boolean =
+        listOf(PREF_LOGIN, PREF_PASSWORD).none { secureStorage.read(it).isNullOrEmpty() }
 
     fun areContactsPermissionsGranted(): Boolean {
         return listOf(
@@ -35,7 +34,14 @@ class OnboardingViewModel @ViewModelInject constructor(
         }
     }
 
-    fun fbLogin(): Single<String> {
+    fun fbLogin(login: String, pass: String): Single<String> {
         return friendRepository.fbLogin()
+            .doOnSubscribe {
+                with(secureStorage) {
+                    write(PREF_LOGIN, login)
+                    write(PREF_PASSWORD, pass)
+                }
+            }
+            .doOnError { secureStorage.clear() }
     }
 }

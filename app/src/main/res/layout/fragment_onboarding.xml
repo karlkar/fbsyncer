@@ -1,115 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBg"
-    android:orientation="vertical">
+    android:background="@color/colorBg">
 
     <ImageView
+        android:id="@+id/bubble_up"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:scaleType="fitXY"
-        android:src="@drawable/bubble_up" />
+        android:layout_height="wrap_content"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bubble_up"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <LinearLayout
+    <ScrollView
+        android:id="@+id/scroll_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="5"
         android:background="@android:color/white"
-        android:gravity="center"
-        android:orientation="vertical">
+        app:layout_constraintBottom_toTopOf="@id/bubble_bottom"
+        app:layout_constraintTop_toBottomOf="@id/bubble_up">
 
-        <ScrollView
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/questionTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginLeft="@dimen/text_margin"
+                android:layout_marginRight="@dimen/text_margin"
+                android:text="@string/activity_main_whitelist_message"
+                android:textAlignment="center"
+                android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium"
+                app:layout_constraintTop_toTopOf="parent" />
 
-                <TextView
-                    android:id="@+id/questionTextView"
+            <ProgressBar
+                android:id="@+id/loginProgress"
+                style="?android:attr/progressBarStyleLarge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/questionTextView"
+                tools:visibility="visible" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fbLoginLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="64dp"
+                android:layout_marginEnd="64dp"
+                android:hint="@string/activity_main_facebook_login_hint"
+                android:labelFor="@id/fbLogin"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/loginProgress">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/fbLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fbPassLayout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="64dp"
+                android:layout_marginEnd="64dp"
+                android:hint="@string/activity_main_facebook_password_hint"
+                android:labelFor="@id/fbPass"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/fbLoginLayout">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/fbPass"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginLeft="@dimen/text_margin"
-                    android:layout_marginRight="@dimen/text_margin"
-                    android:text="@string/activity_main_whitelist_message"
-                    android:textAlignment="center"
-                    android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
+                    android:inputType="textPassword" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                <ProgressBar
-                    android:id="@+id/loginProgress"
-                    style="?android:attr/progressBarStyleLarge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:visibility="gone" />
+            <Button
+                android:id="@+id/questionButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/question_button_margin_top"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/fbPassLayout" />
 
-                <LinearLayout
-                    android:id="@+id/fbLoginForm"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone">
-
-                    <EditText
-                        android:id="@+id/fbLogin"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:hint="@string/activity_main_facebook_login_hint" />
-
-                    <EditText
-                        android:id="@+id/fbPass"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:hint="@string/activity_main_facebook_password_hint"
-                        android:inputType="textPassword" />
-
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/questionButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="@dimen/question_button_margin_top" />
-
-            </LinearLayout>
-        </ScrollView>
-    </LinearLayout>
+            <androidx.constraintlayout.widget.Group
+                android:id="@+id/fbLoginForm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:constraint_referenced_ids="fbLoginLayout,fbPassLayout"
+                tools:visibility="visible" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
 
     <ImageView
+        android:id="@+id/app_logo"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:adjustViewBounds="true"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/bottom_guideline"
+        app:layout_constraintStart_toStartOf="@id/bottom_guideline" />
+
+    <ImageView
+        android:id="@+id/bubble_bottom"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginBottom="50dp"
         android:layout_weight="1"
-        android:scaleType="fitXY"
-        android:src="@drawable/bubble_down" />
+        android:scaleType="centerCrop"
+        android:src="@drawable/bubble_down"
+        app:layout_constraintBottom_toBottomOf="@id/app_logo" />
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="2"
-        android:gravity="right">
-
-        <androidx.legacy.widget.Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="20" />
-
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:adjustViewBounds="true"
-            android:scaleType="fitXY"
-            android:src="@mipmap/ic_launcher" />
-
-        <androidx.legacy.widget.Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="7" />
-    </LinearLayout>
-</LinearLayout>
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/bottom_guideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.67" />
+</androidx.constraintlayout.widget.ConstraintLayout>

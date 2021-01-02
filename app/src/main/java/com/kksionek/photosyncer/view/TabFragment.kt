@@ -29,7 +29,7 @@ class TabFragment : Fragment() {
     private var _binding: FragmentTabBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var menuItemSyncCtrl: MenuItemSyncCtrl
+    private var menuItemSyncCtrl: MenuItemSyncCtrl? = null
     private val contactsAdapter = ContactsAdapter<ContactEntity>()
 
     private val tabViewModel: TabViewModel by viewModels()
@@ -100,9 +100,9 @@ class TabFragment : Fragment() {
         with(tabViewModel) {
             isSyncRunning.observe(viewLifecycleOwner) { running ->
                 if (running) {
-                    menuItemSyncCtrl.startAnimation()
+                    menuItemSyncCtrl?.startAnimation()
                 } else {
-                    menuItemSyncCtrl.endAnimation()
+                    menuItemSyncCtrl?.endAnimation()
                 }
             }
 
@@ -212,7 +212,11 @@ class TabFragment : Fragment() {
         super.onResume()
 
         if (!onboardingViewModel.hasPrerequisites()) {
-            findNavController().navigate(R.id.onboardingFragment)
+            val destination = R.id.onboardingFragment
+            val navOptions = NavOptions.Builder()
+                .setPopUpTo(destination, true)
+                .build()
+            findNavController().navigate(destination, null, navOptions)
         }
     }
 
