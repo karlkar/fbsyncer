@@ -15,12 +15,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.fragment.findNavController
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentOnboardingBinding
-import com.kksionek.photosyncer.repository.SecureStorage
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class OnboardingFragment : Fragment() {
@@ -28,9 +26,6 @@ class OnboardingFragment : Fragment() {
     companion object {
         const val ONBOARDING_SUCCESSFUL = "ONBOARDING_SUCCESSFUL"
     }
-
-    @Inject
-    lateinit var secureStorage: SecureStorage
 
     private var _binding: FragmentOnboardingBinding? = null
     private val binding get() = _binding!!
@@ -101,7 +96,6 @@ class OnboardingFragment : Fragment() {
                     val pass = binding.fbPass.text.toString()
 
                     if (login.isNotEmpty() && pass.isNotEmpty()) {
-                        // TODO: Move more logic to ViewModel
                         onboardingViewModel.fbLogin(login, pass)
                             .subscribeOn(Schedulers.io())
                             .observeOn(AndroidSchedulers.mainThread())
@@ -112,7 +106,6 @@ class OnboardingFragment : Fragment() {
                                 },
                                 {
                                     showProgress(false)
-                                    secureStorage.clear()
                                     Toast.makeText(
                                         requireContext(),
                                         R.string.activity_main_login_failed_toast,
