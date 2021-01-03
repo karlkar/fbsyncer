@@ -8,7 +8,7 @@ class AcceptLanguageInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         val requestWithUserAgent = originalRequest.newBuilder()
-            .header("Accept-Language", "en-US")
+            .header("Accept-Language", "en-GB,en;q=0.9")
             .build()
         return chain.proceed(requestWithUserAgent)
     }

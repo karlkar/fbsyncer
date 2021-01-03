@@ -49,14 +49,12 @@ class OnboardingViewModel @ViewModelInject constructor(
     }
 
     fun fbLogin(login: String, pass: String) {
+        _fbLoginState.postValue(FbLoginState.InProgress)
+        with(secureStorage) {
+            write(PREF_LOGIN, login)
+            write(PREF_PASSWORD, pass)
+        }
         disposables.add(friendRepository.fbLogin()
-            .doOnSubscribe {
-                _fbLoginState.postValue(FbLoginState.InProgress)
-                with(secureStorage) {
-                    write(PREF_LOGIN, login)
-                    write(PREF_PASSWORD, pass)
-                }
-            }
             .doOnError { secureStorage.clear() }
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
