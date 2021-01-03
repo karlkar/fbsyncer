@@ -137,6 +137,11 @@ class FriendRepositoryImpl @Inject constructor(
                 )
             }
             .flatMap { loginResponse ->
+                if (loginResponse.contains("a problem with this request.")) {
+                    Log.e(TAG, "fbLogin: Problem with this request")
+                    secureStorage.clear()
+                    return@flatMap Single.error(Exception("Wrong login and/or password"))
+                }
                 if (loginResponse.contains("login_form")) {
                     Log.e(TAG, "fbLogin: Wrong login/password")
                     secureStorage.clear()

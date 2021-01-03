@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import androidx.room.Room
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.kksionek.photosyncer.gateway.AcceptLanguageInterceptor
 import com.kksionek.photosyncer.gateway.FacebookEndpoint
 import com.kksionek.photosyncer.gateway.UserAgentInterceptor
 import com.kksionek.photosyncer.repository.*
@@ -43,14 +44,20 @@ class AppModule {
         UserAgentInterceptor("Mozilla/5.0 (Linux; U; Android 2.3.6; en-us; Nexus S Build/GRK39F) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1")
 
     @Provides
+    fun provideAcceptLanguageInterceptor(): AcceptLanguageInterceptor =
+        AcceptLanguageInterceptor()
+
+    @Provides
     fun provideOkHttpClient(
-        userAgentInterceptor: UserAgentInterceptor
+        userAgentInterceptor: UserAgentInterceptor,
+        acceptLanguageInterceptor: AcceptLanguageInterceptor
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
             .addInterceptor(userAgentInterceptor)
+            .addInterceptor(acceptLanguageInterceptor)
             .addInterceptor(loggingInterceptor)
             .cookieJar(object : CookieJar {
                 private val cookieStore = HashMap<String, List<Cookie>>()

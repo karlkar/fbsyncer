@@ -15,10 +15,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.fragment.findNavController
 import com.kksionek.photosyncer.R
 import com.kksionek.photosyncer.databinding.FragmentOnboardingBinding
+import com.kksionek.photosyncer.model.FbLoginState
+import com.kksionek.photosyncer.model.OnboardingStep
 import com.kksionek.photosyncer.viewmodel.OnboardingViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 
 @AndroidEntryPoint
 class OnboardingFragment : Fragment() {
@@ -37,7 +37,7 @@ class OnboardingFragment : Fragment() {
     private val requestContactsPermissions =
         prepareCall(ActivityResultContracts.RequestPermissions()) { grantResults ->
             if (grantResults.size == 2 && grantResults.all { it.value }) {
-                showFbLoginScreen()
+                onboardingViewModel.nextStep()
             } else {
                 Toast.makeText(
                     requireContext(),
@@ -62,13 +62,37 @@ class OnboardingFragment : Fragment() {
             it.set(ONBOARDING_SUCCESSFUL, false)
         }
 
-        showPermissionRequestScreen()
+        onboardingViewModel.onboardingStep.observe(viewLifecycleOwner) {
+            when (it) {
+                OnboardingStep.StepPermissions -> showPermissionRequestScreen()
+                OnboardingStep.FbLogin -> showFbLoginScreen()
+                OnboardingStep.Completed -> markOnboardingSuccessful()
+            }
+        }
+
+        onboardingViewModel.fbLoginState.observe(viewLifecycleOwner) {
+            when (it) {
+                FbLoginState.InProgress -> {
+                    showLoginProgress(true)
+                }
+                FbLoginState.Success -> {
+                    showLoginProgress(false)
+                    onboardingViewModel.nextStep()
+                }
+                FbLoginState.Error -> {
+                    showLoginProgress(false)
+                    binding.fbPassLayout.error = getString(R.string.activity_main_login_failed_toast)
+                }
+            }
+        }
+
+        onboardingViewModel.nextStep()
     }
 
     private fun showPermissionRequestScreen() {
-        if (!onboardingViewModel.areContactsPermissionsGranted()) {
-            binding.questionTextView.setText(R.string.activity_main_grant_contacts_access_message)
-            binding.questionButton.apply {
+        with(binding) {
+            questionTextView.setText(R.string.activity_main_grant_contacts_access_message)
+            questionButton.apply {
                 setText(R.string.activity_main_button_grant_contacts_access)
                 setOnClickListener {
                     requestContactsPermissions.launch(
@@ -79,56 +103,36 @@ class OnboardingFragment : Fragment() {
                     )
                 }
             }
-        } else {
-            showFbLoginScreen()
         }
     }
 
     private fun showFbLoginScreen() {
-        if (!onboardingViewModel.isFbAccountSetUp()) {
-            binding.questionTextView.setText(R.string.activity_main_facebook_permission_request_message)
-            showProgress(false)
-            binding.questionButton.apply {
-                setText(R.string.activity_main_button_login_facebook)
-                setOnClickListener {
-                    showProgress(true)
-                    val login = binding.fbLogin.text.toString()
-                    val pass = binding.fbPass.text.toString()
+        binding.questionTextView.setText(R.string.activity_main_facebook_permission_request_message)
+        showLoginProgress(false)
+        binding.questionButton.apply {
+            setText(R.string.activity_main_button_login_facebook)
+            setOnClickListener {
+                val login = binding.fbLogin.text.toString()
+                val pass = binding.fbPass.text.toString()
 
-                    if (login.isNotEmpty() && pass.isNotEmpty()) {
-                        onboardingViewModel.fbLogin(login, pass)
-                            .subscribeOn(Schedulers.io())
-                            .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(
-                                {
-                                    binding.loginProgress.visibility = View.GONE
-                                    markOnboardingSuccessful()
-                                },
-                                {
-                                    showProgress(false)
-                                    Toast.makeText(
-                                        requireContext(),
-                                        R.string.activity_main_login_failed_toast,
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                })
-                    } else {
-                        showProgress(false)
-                        Toast.makeText(
-                            requireContext(),
-                            R.string.activity_main_login_failed_toast,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                if (login.isNotEmpty() && pass.isNotEmpty()) {
+                    onboardingViewModel.fbLogin(login, pass)
+                } else {
+                    showLoginProgress(false)
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.activity_main_login_failed_toast,
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
-        } else {
-            markOnboardingSuccessful()
         }
     }
 
-    private fun showProgress(show: Boolean) {
+    private fun showLoginProgress(show: Boolean) {
         val shortAnimTime = resources.getInteger(android.R.integer.config_shortAnimTime)
+
+        binding.questionButton.isEnabled = !show
 
         with(binding.fbLoginForm) {
             visibility = if (show) View.GONE else View.VISIBLE
